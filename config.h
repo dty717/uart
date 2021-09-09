@@ -19,5 +19,14 @@
 #define UART1_TX_PIN 4
 #define UART1_RX_PIN 5
 
+#define PIO_BAUD_RATE    9600
+#define PIO_RX_PIN    20
+
+#define PH_ADC_PIN    26
+#define PH_ADC         0
+#define TUR_ADC_PIN   28
+#define TUR_ADC        2
+
+#define InputDetect_PIN 21
 
 #endif

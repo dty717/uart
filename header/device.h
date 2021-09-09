@@ -9,6 +9,23 @@
 #define MN_MAX_LENGTH     30
 #define PW_LENGTH     6
 #define PollutionDataLen  4
+#define checkAddr  5  //1 2 3 4 5
+#define configAddr 20
+
+typedef enum {
+    gps_yearAddr,
+    gps_monthAddr,
+    gps_dateAddr,
+    gps_hourAddr,
+    gps_minuteAddr,
+    gps_secondAddr,
+    gps_stateAddr,
+    gps_latitudeAddr,
+    gps_latitudeFlagAddr = gps_latitudeAddr+4,
+    gps_longitudeAddr,
+    gps_longitudeFlagAddr=gps_longitudeAddr+4,
+} gpsAddr;//uint 8
+
 typedef enum {
     poolNumAddr,
     poolNumsAddr,
@@ -21,7 +38,7 @@ typedef enum {
     pollutionCodeAddr,
     pollutionDataAddr,
     pollutionStateAddr=pollutionDataAddr+2,
-} deviceDataAddr;
+} deviceDataAddr;//uint 16
 
 
 #define UT_REGISTERS_ADDRESS 0x57

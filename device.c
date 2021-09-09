@@ -8,6 +8,7 @@
 #include "hardware/flash.h"
 #include "header/flash.h"
 
+uint8_t *flashData;
 
 deviceData_t *new_deviceData(uint16_t poolNums, uint16_t pollutionNums, uint8_t MN_len)
 {
@@ -52,7 +53,6 @@ uint8_t checkMN(uint8_t MN_len, uint16_t *current_MN, uint8_t *deviceData_MN)
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData)
 {
 	response_type_t needUpdate =  ask_device(ctx,deviceData);
-	
 	// needUpdate = 1;
 	// (*deviceData)->poolNum = 1;
 	// printf("needUpdate:%d\r\n",needUpdate);
@@ -325,8 +325,6 @@ addNewDate:
 	printf("addNewDate\r\n");
 	addNewDate(*deviceData, tab_rp_registers);
 	
-	uint8_t *flashData = NULL;
-	flashData = (uint8_t *)malloc(nb_points * 2 * sizeof(uint8_t));
 	flashData[0] = '1';
 	flashData[1] = '2';
 	flashData[2] = '3';
@@ -335,6 +333,7 @@ addNewDate:
 		flashData[i*2+configAddr] = tab_rp_registers[i]>>8;
 		flashData[i*2+configAddr+1] = tab_rp_registers[i]&0xff;
 	}
+
 	flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
 	flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
 	
@@ -374,8 +373,8 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		uint8_t b2 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] >> 8);
 		uint8_t b3 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] & 0x00FF);
 		deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);
-		printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
-		printf("deviceData  %f  %f  %f  %f\r\n",bytesToFloat(b0, b1, b2, b3),bytesToFloat(b2, b3, b0, b1),bytesToFloat(b1, b0, b3, b2),bytesToFloat(b3, b2, b1, b0));
+		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
+		// printf("deviceData  %f  %f  %f  %f\r\n",bytesToFloat(b0, b1, b2, b3),bytesToFloat(b2, b3, b0, b1),bytesToFloat(b1, b0, b3, b2),bytesToFloat(b3, b2, b1, b0));
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
 	}
 

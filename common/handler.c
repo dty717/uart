@@ -84,6 +84,18 @@ void floatToByteArray(float f, uint8_t *arrarVal)
         arrarVal[i] = (asInt >> 8 * i) & 0xFF;
     }
 }
+void AppendfloatToU8Array(float f, uint8_t *arrarVal, uint16_t index)
+{
+    unsigned int asInt = *((int *)&f);
+    int i;
+    for (i = 0; i < 4; i++)
+    {
+        arrarVal[index + i] = (asInt >> 8 * i) & 0xFF;
+    }
+}
+float _4_20mvTofloat(float I,float Imin,float Imax){
+  return (I-4) *(Imax-Imin)/16+Imin;
+}
 void *AppendfloatToU16Array(float f, uint16_t *target, uint16_t index)
 {
     unsigned int asInt = *((int *)&f);
@@ -295,4 +307,29 @@ uint32_t toNumber(uint8_t *target, uint16_t startIndex, uint16_t endIndex)
         ten_power *= 10;
     }
     return val;
+}
+
+float toFloat(uint8_t *target, uint16_t startIndex, uint16_t endIndex)
+{
+    uint32_t num = 0;
+    size_t i = 0;
+    for (i = startIndex; i < endIndex; i++)
+    {
+        if(target[i]=='.'){
+            break;
+        }
+        num *= 10;
+        num += target[i] - 0x30;
+    }
+    i++;
+    uint32_t val = 0;
+    uint32_t ten_power = 1;
+    for (; i < endIndex; i++)
+    {
+        val *= 10;
+        val += target[i] - 0x30;
+        ten_power *= 10;
+    }
+    // printf("%d %d %d  =>  %d",num,val,ten_power,num+val/(ten_power+0.0));
+    return num+val/(ten_power+0.0);
 }

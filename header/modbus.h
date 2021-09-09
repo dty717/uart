@@ -2,8 +2,10 @@
 #define MODBUS_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include "pico/stdlib.h"
+#include <string.h>
 
 #ifndef Debug_messageReceive
     #define Debug_messageReceive
@@ -247,6 +249,7 @@ int modbus_connect(modbus_t *ctx);
 int modbus_set_debug(modbus_t *ctx, int flag);
 int modbus_set_slave(modbus_t *ctx, int slave);
 int modbus_add_RXData(modbus_t *ctx, uint8_t ch);
+int modbus_write_bits(modbus_t *ctx, int addr, int nb, const uint8_t *src);
 
 MODBUS_API int modbus_read_registers(modbus_t *ctx, int addr, int nb, uint16_t *dest);
 MODBUS_API int modbus_write_register(modbus_t *ctx, int reg_addr, const uint16_t value);

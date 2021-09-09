@@ -9,8 +9,9 @@
 #include "hardware/flash.h"
 
 #define FLASH_TARGET_OFFSET (256 * 1024)
-#define configAddr 3
 
 void print_buf(const uint8_t *buf, size_t len);
+
+extern uint8_t *flashData;
 
 #endif

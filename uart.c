@@ -1,46 +1,109 @@
+/**
+ * Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "hardware/uart.h"
 #include "hardware/irq.h"
+#include "hardware/pio.h"
 #include "hardware/watchdog.h"
+#include "hardware/adc.h"
+#include "hardware/flash.h"
+
+#include "uart_rx.pio.h"
+
+#include "config.h"
 #include "header/device.h"
 #include "header/modbus.h"
 #include "header/J212.h"
 #include "header/modbusRTU.h"
 #include "header/flash.h"
-#include "config.h"
+#include "header/gps.h"
 #include "header/common/handler.h"
-#include "hardware/adc.h"
-#include "hardware/flash.h"
 
 /// \tag::multicore_dispatch[]
 
 static modbus_t *ctx;
 deviceData_t *deviceData = NULL;
 
-const uint8_t *flash_target_contents = (const uint8_t *) (XIP_BASE + FLASH_TARGET_OFFSET);
+const uint8_t *flash_target_contents = (const uint8_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
+PIO pio = pio0;
+uint sm = 0;
+gpsData_t *gpsData;
+#define uart_rx_program_charLen 256
+uint8_t uart_rx_program_char[uart_rx_program_charLen];
+uint8_t uart_rx_program_char_copy[uart_rx_program_charLen];
+uint16_t uart_rx_program_charIndex = 0;
+uint16_t uart_rx_program_char_copyIndex = 0;
 
+uint16_t saveTimes  = 0;
+uint8_t *flashData;
+
+// Ask core 1 to print a string, to make things easier on core 0
 void core1_entry()
 {
     while (1)
     {
-        // uploadDevice(deviceData);
-        // Function pointer is passed to us via the FIFO
-        // We have one incoming int32_t as a parameter, and will provide an
-        // int32_t return value by simply pushing it back on the FIFO
-        // which also indicates the result is ready.
-        multicore_fifo_pop_blocking();
-        if(deviceData!=NULL){
-            uploadDevice(deviceData,uart0,UART0_EN_PIN);
+        char c = uart_rx_program_getc(pio, sm);
+        // putchar(c);
+        if(c!='\n'){
+            if(uart_rx_program_charIndex>=uart_rx_program_charLen){
+                uart_rx_program_charIndex = 0;
+                uart_rx_program_char[uart_rx_program_charIndex+1] = '\0';
+            }
+            uart_rx_program_char[uart_rx_program_charIndex++] = c;
+        }else{
+            for (size_t i = 0; i < uart_rx_program_charIndex; i++)
+            {
+                uart_rx_program_char_copy[i] = uart_rx_program_char[i];
+            }
+            uart_rx_program_char_copy[uart_rx_program_charIndex] = '\0';
+            uart_rx_program_char_copyIndex = uart_rx_program_charIndex;
+            uart_rx_program_charIndex = 0;
+            uart_rx_program_char[uart_rx_program_charIndex + 1] = '\0';
+            gps_response_type_t gps_response_type= handleGPSString(uart_rx_program_char_copy, uart_rx_program_char_copyIndex, gpsData);
+            if (gps_response_type == GNRMC||gps_response_type == GPRMC)
+            {
+
+                if (gpsData->state == 'A')
+                {
+                    // printf("gps info:%.4d-%.2d-%.2d %.2d:%.2d:%.2d %f%c,%f%c\r\n", gpsData->year, gpsData->month, gpsData->date, gpsData->hour, gpsData->minute, gpsData->second,
+                    //        gpsData->latitude, gpsData->latitudeFlag, gpsData->longitude, gpsData->longitudeFlag);
+                    // printf("%d\r\n",flashData[0]);
+                    if(saveTimes==0){
+                        flashData[3] = '4';
+                        flashData[4] = '5';
+                        flashData[checkAddr + gps_yearAddr] = gpsData->year-2000;
+                        flashData[checkAddr + gps_monthAddr] = gpsData->month;
+                        flashData[checkAddr + gps_dateAddr] = gpsData->date;
+                        flashData[checkAddr + gps_hourAddr] = gpsData->hour;
+                        flashData[checkAddr + gps_minuteAddr] = gpsData->minute;
+                        flashData[checkAddr + gps_secondAddr] = gpsData->second;
+                        AppendfloatToU8Array(gpsData->latitude, flashData, checkAddr + gps_latitudeAddr);
+                        flashData[checkAddr + gps_latitudeFlagAddr] = gpsData->latitudeFlag;
+                        AppendfloatToU8Array(gpsData->longitude, flashData, checkAddr + gps_longitudeAddr);
+                        flashData[checkAddr + gps_longitudeFlagAddr] = gpsData->longitudeFlag;
+                        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
+                        flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
+                    }else{
+                        saveTimes++;
+                        if(saveTimes==10){
+                            saveTimes = 0;
+                        }
+                    }
+                }
+                else
+                {
+                    printf("gps state:%c\r\n", gpsData->state);
+                }
+
+            }
         }
-        sleep_ms(1000);
-        // int32_t (*func)() = (int32_t(*)())multicore_fifo_pop_blocking();
-        // int32_t p = multicore_fifo_pop_blocking();
-        // int32_t result = (*func)(p);
-        // multicore_fifo_push_blocking(result);
-        // sleep_ms(1250);
     }
 }
 
@@ -75,33 +138,23 @@ void on_uart1_rx() {
     }
 }
 
+static char event_str[128];
+
+void gpio_event_string(char *buf, uint32_t events);
+
+void gpio_callback(uint gpio, uint32_t events) {
+    // Put the GPIO event(s) that just happened into event_str
+    // so we can print it
+    gpio_event_string(event_str, events);
+    printf("GPIO %d %s\n", gpio, event_str);
+}
+
 int main()
 {
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     int res;
 
-    stdio_init_all();
-    
-    // sleep_ms(2000);
-    // // flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
-    // uint8_t random_data[FLASH_PAGE_SIZE];
-    // for (int i = 0; i < FLASH_PAGE_SIZE; ++i)
-    //     random_data[i] = 6;
-
-    // printf("Generated random data:\n");
-    // print_buf(random_data, FLASH_PAGE_SIZE);
-
-    // // Note that a whole number of sectors must be erased at a time.
-    // printf("\nErasing target region...\n");
-    // flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
-    // // printf("Done. Read back target region:\n");
-    // // print_buf(flash_target_contents, FLASH_PAGE_SIZE);
-
-    // // printf("\nProgramming target region...\n");
-    // flash_range_program(FLASH_TARGET_OFFSET, random_data, FLASH_PAGE_SIZE);
-    // printf("Done. Read back target region:\n");
-    // print_buf(flash_target_contents, FLASH_PAGE_SIZE);
-
+    stdio_init_all();    
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -153,16 +206,21 @@ int main()
     adc_init();
 
     // Make sure GPIO is high-impedance, no pullups etc
-    adc_gpio_init(26);
+    adc_gpio_init(PH_ADC_PIN);
 
     // Make sure GPIO is high-impedance, no pullups etc
-    adc_gpio_init(27);
+    adc_gpio_init(TUR_ADC_PIN);
 
-    printf("Hello, multicore_runner!\n");
-    // This example dispatches arbitrary functions to run on the second core
-    // To do this we run a dispatcher on the second core that accepts a function
-    // pointer and runs it
-    multicore_launch_core1(core1_entry);
+    gpio_set_irq_enabled_with_callback(InputDetect_PIN, GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+
+    // Set up the state machine we're going to use to receive them.
+    pio = pio0;
+    sm = 0;
+    uint offset = pio_add_program(pio, &uart_rx_program);
+    uart_rx_program_init(pio, sm, offset, PIO_RX_PIN, PIO_BAUD_RATE);
+
+    flashData = (uint8_t *)malloc(FLASH_PAGE_SIZE * sizeof(uint8_t));
+    gpsData = (gpsData_t *)malloc(sizeof(gpsData_t));
 
     
     /*
@@ -209,10 +267,15 @@ int main()
     // uint8_t changeFlag = false;
     uint16_t dataLen =2 ;
     float data[dataLen];
+    size_t i;
+    for (i = 0; i < FLASH_PAGE_SIZE; i++)
+    {
+        flashData[i] = flash_target_contents[i];
+    }
+
     if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'){
         uint16_t *tab_rp_registers = NULL;
         tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
-        size_t i;
         for (i = 0; i < nb_points; i++)
         {
             tab_rp_registers[i] = (flash_target_contents[i*2+configAddr]<<8)+flash_target_contents[i*2+configAddr+1];
@@ -223,25 +286,41 @@ int main()
         deviceData->PW = "123456";
         addNewDate(deviceData,tab_rp_registers);
     }
+    if(flash_target_contents[3]=='4'&&flash_target_contents[4]=='5'){
+        gpsData->year = flash_target_contents[checkAddr + gps_yearAddr] + 2000;
+        gpsData->month = flash_target_contents[checkAddr + gps_monthAddr];
+        gpsData->date = flash_target_contents[checkAddr + gps_dateAddr];
+        gpsData->hour = flash_target_contents[checkAddr + gps_hourAddr];
+        gpsData->minute = flash_target_contents[checkAddr + gps_minuteAddr];
+        gpsData->second = flash_target_contents[checkAddr + gps_secondAddr];
+        gpsData->latitude = bytesToFloat(flash_target_contents[checkAddr + gps_latitudeAddr + 3], flash_target_contents[checkAddr + gps_latitudeAddr + 2],
+                                         flash_target_contents[checkAddr + gps_latitudeAddr + 1], flash_target_contents[checkAddr + gps_latitudeAddr]);
+        gpsData->latitudeFlag = flash_target_contents[checkAddr + gps_latitudeFlagAddr];
+        gpsData->longitude = bytesToFloat(flash_target_contents[checkAddr + gps_longitudeAddr + 3], flash_target_contents[checkAddr + gps_longitudeAddr + 2],
+                                          flash_target_contents[checkAddr + gps_longitudeAddr + 1], flash_target_contents[checkAddr + gps_longitudeAddr]);
+        gpsData->longitudeFlag = flash_target_contents[checkAddr + gps_longitudeFlagAddr];
+    }
+
+    // This example dispatches arbitrary functions to run on the second core
+    // To do this we run a dispatcher on the second core that accepts a function
+    // pointer and runs it
+    multicore_launch_core1(core1_entry);
 
     while (true)
     {
-        // printf("233 %s %d %d\r\n",ctx_rtu->ch,ctx_rtu->chars_rxed,mb_mapping->tab_bits[1]);
-        if(deviceData!=NULL)
+        
+        if(deviceData!=NULL&&ctx->debug)
             printf("out %d %d %d\r\n", deviceData->poolNums, deviceData->pollutionNums, deviceData->MN_len);
 
-        // test(&deviceData);
-        // print_buf(flash_target_contents, FLASH_PAGE_SIZE);
-
-        adc_select_input(0);
+        adc_select_input(PH_ADC);
         uint adc_PH = adc_read();
-        adc_select_input(1);
+        adc_select_input(TUR_ADC);
         uint adc_TUR = adc_read();
-        data[0]= adc_PH * conversion_factor;
-        data[1]= adc_TUR * conversion_factor;
-        printf("%f %f\r\n",data[0],data[1]);
+        data[0] = _4_20mvTofloat(adc_PH * conversion_factor / 160 * 1000, 0, 7);
+        data[1] = _4_20mvTofloat(adc_TUR * conversion_factor / 160 * 1000, 0, 100);
+
         set_led_valueByAddr(ctx, LED_VALUE_ADDRESS + setLedValueNums * 2, data, dataLen);
-        
+        // printf("PH:%f,TUR%f\r\n",data[0],data[1]);
         response_type_t needUpdate = ask_all_devices(ctx,&deviceData);
         switch (needUpdate)
         {
@@ -259,31 +338,45 @@ int main()
             deviceData->pollutions[deviceData->pollutionNums + 1].code = "w01012";
             deviceData->pollutions[deviceData->pollutionNums].data = data[1];
             deviceData->pollutions[deviceData->pollutionNums].state = 1;
-            multicore_fifo_push_blocking(123);
-            // uploadDevice(deviceData);
+            
+            // multicore_fifo_push_blocking(123);
+            uploadDevice(deviceData,uart0,uart0_EN);
             break;
         default:
             break;
         }
-
         // printf("Raw value: 0x%03x, voltage: %f V\n", result, adc_PH * conversion_factor);
-        
         sleep_ms(1000);
         val = !val;
         gpio_put(LED_PIN, val);
-
-        // sleep_ms(1250);
-        // gpio_put(LED_PIN, 0);
-        // sleep_ms(1250);
-
-        // gpio_put(uart0_EN, 1);
-        // printf("main\r\n");
-        // // uart_puts(uart0, " Hello0, UART!\r\n");
-        // // uart_puts(uart1, " Hello1, UART!\r\n");
-        // gpio_put(LED_PIN, 1);
-        // sleep_ms(1250);
-        // gpio_put(LED_PIN, 0);
-        // sleep_ms(1250);
     }
     return 0;
+}
+
+static const char *gpio_irq_str[] = {
+        "LEVEL_LOW",  // 0x1
+        "LEVEL_HIGH", // 0x2
+        "EDGE_FALL",  // 0x4
+        "EDGE_RISE"   // 0x8
+};
+
+void gpio_event_string(char *buf, uint32_t events) {
+    for (uint i = 0; i < 4; i++) {
+        uint mask = (1 << i);
+        if (events & mask) {
+            // Copy this event string into the user string
+            const char *event_str = gpio_irq_str[i];
+            while (*event_str != '\0') {
+                *buf++ = *event_str++;
+            }
+            events &= ~mask;
+
+            // If more events add ", "
+            if (events) {
+                *buf++ = ',';
+                *buf++ = ' ';
+            }
+        }
+    }
+    *buf++ = '\0';
 }
