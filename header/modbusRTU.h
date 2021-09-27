@@ -14,7 +14,8 @@
 
 #define MODBUS_RTU_MAX_ADU_LENGTH  256
 #define MODBUS_RTU_MAX_RESPONSE_TIMES  3
-#define MODBUS_RTU_MAX_RESPONSE_TIME   500
+#define MODBUS_RTU_MAX_RESPONSE_TIME   50
+#define MODBUS_RTU_MIN_RESPONSE_TIME   2
 
 typedef struct _rtu_modbus {
     /* Device: "/dev/ttyS0", "/dev/ttyUSB0" or "/dev/tty.USA19*" on Mac OS X. */
@@ -39,14 +40,16 @@ typedef struct _rtu_modbus {
 #endif
     /* To handle many slaves on the same link */
     int confirmation_to_ignore;
+    uint8_t isServer;
     uart_inst_t *uart;
     uint8_t uart_en_pin;
     uint8_t *ch;
     uint16_t chars_rxed;
     uint16_t chars_rx_index;
+    uint16_t chars_rx_server_index;
 } modbus_rtu_t;
 
 MODBUS_API modbus_t* modbus_new_rtu(const char *device, int baud, char parity,
-                                    int data_bit, int stop_bit,uart_inst_t *uart,uint8_t uart_en_pin);
+                                    int data_bit, int stop_bit,uart_inst_t *uart,uint8_t uart_en_pin,uint8_t isServer);
 
 #endif

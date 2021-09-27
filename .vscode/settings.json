@@ -31,7 +31,9 @@
       "handler.h": "c",
       "irq.h": "c",
       "flash.h": "c",
-      "stdio.h": "c"
+      "stdio.h": "c",
+      "gpio.h": "c",
+      "algorithm": "c"
     }
 
 }

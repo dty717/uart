@@ -10,7 +10,7 @@
 #define PW_LENGTH     6
 #define PollutionDataLen  4
 #define checkAddr  5  //1 2 3 4 5
-#define configAddr 20
+#define configAddr 30
 
 typedef enum {
     gps_yearAddr,
@@ -25,6 +25,8 @@ typedef enum {
     gps_longitudeAddr,
     gps_longitudeFlagAddr=gps_longitudeAddr+4,
 } gpsAddr;//uint 8
+
+#define InputDetectAddr (checkAddr+gps_longitudeFlagAddr+1)/2+1
 
 typedef enum {
     poolNumAddr,
@@ -49,6 +51,7 @@ typedef enum {
 #define setLedValueNums 6
 #define ledAddr 80
 #define deviceAddr 1
+#define uploadAddr 0x80
 
 #define remainingPollutionNums 2
 typedef enum {

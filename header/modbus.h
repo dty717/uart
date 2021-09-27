@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <errno.h>
 #include "pico/stdlib.h"
 #include <string.h>
@@ -70,7 +71,8 @@ typedef enum {
 #define _BYTE_TIMEOUT        500000
 
 
-#define MODBUS_BROADCAST_ADDRESS    0
+// #define MODBUS_BROADCAST_ADDRESS    0
+#define MODBUS_BROADCAST_ADDRESS    -1//not use
 
 /* Modbus_Application_Protocol_V1_1b.pdf (chapter 6 section 1 page 12)
  * Quantity of Coils to read (2 bytes): 1 to 2000 (0x7D0)
@@ -169,6 +171,16 @@ typedef enum {
     _STEP_DATA
 } _step_t;
 
+#define LIBMODBUS_VERSION_STRING "@LIBMODBUS_VERSION@"
+
+#define MODBUS_GET_INT16_FROM_INT8(tab_int8, index) \
+    (((int16_t)tab_int8[(index)    ] << 8) | \
+      (int16_t)tab_int8[(index) + 1])
+#define MODBUS_SET_INT16_TO_INT8(tab_int8, index, value) \
+    do { \
+        ((int8_t*)(tab_int8))[(index)    ] = (int8_t)((value) >> 8);  \
+        ((int8_t*)(tab_int8))[(index) + 1] = (int8_t)(value); \
+    } while (0)
 
 typedef struct _sft {
     int slave;
@@ -256,6 +268,16 @@ MODBUS_API int modbus_write_register(modbus_t *ctx, int reg_addr, const uint16_t
 MODBUS_API int modbus_write_registers(modbus_t *ctx, int addr, int nb, const uint16_t *data);
 MODBUS_API const char *modbus_strerror(int errnum);
 MODBUS_API int modbus_receive(modbus_t *ctx, uint8_t *req);
+MODBUS_API int modbus_get_header_length(modbus_t *ctx);
+MODBUS_API int modbus_reply(modbus_t *ctx, const uint8_t *req,
+                            int req_length, modbus_mapping_t *mb_mapping);
+MODBUS_API int modbus_reply_exception(modbus_t *ctx, const uint8_t *req,
+                                      unsigned int exception_code);
+
+MODBUS_API int modbus_send_raw_request(modbus_t *ctx, const uint8_t *raw_req, int raw_req_length);
+MODBUS_API int modbus_get_socket(modbus_t *ctx);
+MODBUS_API void modbus_set_bits_from_bytes(uint8_t *dest, int idx, unsigned int nb_bits,
+                                       const uint8_t *tab_byte);
 
 MODBUS_API modbus_mapping_t* modbus_mapping_new_start_address(
     unsigned int start_bits, unsigned int nb_bits,
@@ -265,5 +287,6 @@ MODBUS_API modbus_mapping_t* modbus_mapping_new_start_address(
 
 MODBUS_API modbus_mapping_t* modbus_mapping_new(int nb_bits, int nb_input_bits,
                                                 int nb_registers, int nb_input_registers);
+MODBUS_API int modbus_flush(modbus_t *ctx);
 
 #endif

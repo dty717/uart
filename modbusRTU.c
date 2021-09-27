@@ -78,7 +78,7 @@ static int _rtu_modbus_receive(modbus_t *ctx, uint8_t *req)
 {
     int rc;
     modbus_rtu_t *ctx_rtu = ctx->backend_data;
-
+    
     if (ctx_rtu->confirmation_to_ignore) {
         _modbus_receive_msg(ctx, req, MSG_CONFIRMATION);
         /* Ignore errors and reset the flag */
@@ -88,11 +88,34 @@ static int _rtu_modbus_receive(modbus_t *ctx, uint8_t *req)
             printf("Confirmation to ignore\n");
         }
     } else {
+
         rc = _modbus_receive_msg(ctx, req, MSG_INDICATION);
         if (rc == 0) {
+            printf("MSG_INDICATION\r\n");
+
             /* The next expected message is a confirmation to ignore */
             ctx_rtu->confirmation_to_ignore = TRUE;
         }
+    }
+    if(ctx_rtu->isServer){
+        if(rc>0){
+            ctx_rtu->chars_rx_server_index += rc;
+        }else{
+            if(ctx_rtu->chars_rx_server_index+1<ctx_rtu->chars_rxed){
+              ctx_rtu->chars_rx_server_index++;
+            }
+        }
+        if( ctx_rtu->chars_rx_server_index>800){
+            for (size_t i = ctx_rtu->chars_rx_server_index; i < ctx_rtu->chars_rxed; i++)
+            {
+                ctx_rtu->ch[i - ctx_rtu->chars_rx_server_index] = ctx_rtu->ch[i];
+            }
+            // ctx_rtu->chars_rx_server_index-=600;
+            // ctx_rtu->chars_rxed-=600;
+            ctx_rtu->chars_rxed -= ctx_rtu->chars_rx_server_index;
+            ctx_rtu->chars_rx_server_index = 0;
+        }
+        ctx_rtu->chars_rx_index = ctx_rtu->chars_rx_server_index;
     }
     return rc;
 }
@@ -103,14 +126,24 @@ static ssize_t _rtu_modbus_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
     int8_t waitTimes = MODBUS_RTU_MAX_RESPONSE_TIMES;
 
     while((ctx_rtu->chars_rxed-ctx_rtu->chars_rx_index)<rsp_length){
-        waitTimes--;
-        sleep_ms(MODBUS_RTU_MAX_RESPONSE_TIME);
-        if(waitTimes<=0){
-            ctx_rtu->chars_rxed = 0;
-            ctx_rtu->chars_rx_index = 0;
-            return -1;
+        if (!ctx_rtu->isServer) {
+            waitTimes--;
+            sleep_ms(MODBUS_RTU_MAX_RESPONSE_TIME*rsp_length);
+            if (waitTimes <= 0)
+            {
+                ctx_rtu->chars_rxed = 0;
+                ctx_rtu->chars_rx_index = 0;
+                return -1;
+            }
+        }else{
+            sleep_ms(MODBUS_RTU_MIN_RESPONSE_TIME*rsp_length);
+            if (waitTimes <= 0)
+            {
+                return -1;
+            }
         }
     }
+    // printf("\r\nchars_rxed:%d,chars_rx_server_index:%d,chars_rx_index:%d,rsp_length:%d,confirmation_to_ignore:%d\r\n", ctx_rtu->chars_rxed,ctx_rtu->chars_rx_server_index, ctx_rtu->chars_rx_index,rsp_length,ctx_rtu->confirmation_to_ignore);
 
     for (size_t i = 0; i < rsp_length; i++)
     {
@@ -125,6 +158,7 @@ static int _rtu_modbus_flush(modbus_t *ctx){
     modbus_rtu_t *ctx_rtu = ctx->backend_data;
     ctx_rtu->chars_rxed = 0;
     ctx_rtu->chars_rx_index = 0;
+    ctx_rtu->chars_rx_server_index = 0;
     return 1;
 }
 
@@ -162,12 +196,15 @@ static int _rtu_modbus_check_integrity(modbus_t *ctx, uint8_t *msg,
             printf("Request for slave %d ignored (not %d)\n", slave, ctx->slave);
         }
         /* Following call to check_confirmation handles this error */
-        return 0;
+        return -1;
     }
 
     crc_calculated = crc16(msg, 0,msg_length - 2);
     crc_received = (msg[msg_length - 2] << 8) | msg[msg_length - 1];
-
+    //delete test
+    // if(1){
+    //     return msg_length;
+    // }
     /* Check CRC of msg */
     if (crc_calculated == crc_received) {
         return msg_length;
@@ -250,7 +287,7 @@ static void _rtu_modbus_free(modbus_t *ctx) {
     free(ctx);
 }
 
-static void _rtu_modbus_add_RXData(modbus_t *ctx, uint8_t ch) {
+static int _rtu_modbus_add_RXData(modbus_t *ctx, uint8_t ch) {
     if (ctx->backend_data) {
         modbus_rtu_t  *ctx_rtu = (modbus_rtu_t *)ctx->backend_data;
         ctx_rtu->ch[ctx_rtu->chars_rxed] = ch;
@@ -260,7 +297,9 @@ static void _rtu_modbus_add_RXData(modbus_t *ctx, uint8_t ch) {
             ctx_rtu->chars_rxed=0;
             ctx_rtu->chars_rx_index = 0;
         }
+        return 1;
     }
+    return 0;
 }
 
 const modbus_backend_t _rtu_modbus_backend = {
@@ -289,7 +328,7 @@ const modbus_backend_t _rtu_modbus_backend = {
 
 modbus_t* modbus_new_rtu(const char *device,
                          int baud, char parity, int data_bit,
-                         int stop_bit,uart_inst_t *uart,uint8_t uart_en_pin)
+                         int stop_bit,uart_inst_t *uart,uint8_t uart_en_pin,uint8_t isServer)
 {
     modbus_t *ctx;
     modbus_rtu_t *ctx_rtu;
@@ -334,7 +373,9 @@ modbus_t* modbus_new_rtu(const char *device,
     ctx_rtu->ch[0] = '\0';
     ctx_rtu->chars_rxed = 0;
     ctx_rtu->chars_rx_index = 0;
-
+    ctx_rtu->chars_rx_server_index = 0;
+    ctx_rtu->isServer = isServer;
+    
     if (ctx_rtu->device == NULL) {
         modbus_free(ctx);
         errno = ENOMEM;

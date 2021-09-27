@@ -19,6 +19,11 @@
 #define UART1_TX_PIN 4
 #define UART1_RX_PIN 5
 
+#define KEY1_PIN 6
+#define KEY2_PIN 7
+#define KEY3_PIN 8
+#define KEY4_PIN 9
+
 #define PIO_BAUD_RATE    9600
 #define PIO_RX_PIN    20
 
@@ -29,4 +34,11 @@
 
 #define InputDetect_PIN 21
 
-#endif
+// #define UART
+                            #ifndef UART
+#define UART_SUZHOU
+                            #ifndef UART_SUZHOU
+#define UART_CLO3
+                            #endif
+                            #endif
+                            #endif

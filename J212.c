@@ -117,6 +117,7 @@ uint8_t * assignTimeDecimalMicroSec(uint8_t year, uint8_t month, uint8_t date, u
  	buf[a++] = '0';
  	buf[a++] = '0';
  	buf[a++] = '0';
+ 	buf[a] = '\0';
     return buf;
 }
 
@@ -154,7 +155,9 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
     //     return 1;
     // }
     int waitTimes=0;
+
     uint8_t *QN = assignTimeDecimalMicroSec(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second);
+    
     uint16_t index = assignInit(QN,deviceData->PW,"21",deviceData->MN,deviceData->MN_len, getRealTimeDataCMD);
 
     appendArray("DataTime=",uploadDevice_buf,&index);
@@ -164,7 +167,8 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
     // addDeviceData(U3);
     // addDeviceData(U4);
     // addDeviceData(U5);
-    for (size_t i = 0; i < deviceData->pollutionNums; i++)
+    
+    for (size_t i = 0; i < deviceData->pollutionNums+remainingPollutionNums; i++)
     {
         if(deviceData->pollutions[i].state){
             appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
@@ -186,14 +190,15 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
         }
     }
     endUpload();
-    // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
     gpio_put(uart_en_pin, 1);
     sleep_ms(20);
     uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
     sleep_ms(5);
     gpio_put(uart_en_pin, 0);
+    // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
 
-
+    free(QN);
+    QN = NULL;
     // Enable_Ux(U6,_send);
     // if(usingSIM){
     //     if(!SIM_send(sendBufferIndex)){

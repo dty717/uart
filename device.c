@@ -18,15 +18,21 @@ deviceData_t *new_deviceData(uint16_t poolNums, uint16_t pollutionNums, uint8_t 
 	deviceData->poolNums = poolNums;
 	deviceData->MN_len = MN_len;
 	deviceData->MN = malloc(MN_MAX_LENGTH);
+	memset(deviceData->MN, 0, MN_MAX_LENGTH * sizeof(uint8_t));
 	deviceData->PW = malloc(PW_LENGTH);
+	memset(deviceData->PW, 0, PW_LENGTH * sizeof(uint8_t));
 	deviceData->pollutions = (pollution_t *)malloc((deviceData->pollutionNums + remainingPollutionNums) * sizeof(pollution_t));
+	memset(deviceData->pollutions, 0, (deviceData->pollutionNums + remainingPollutionNums) * sizeof(pollution_t));
 	return deviceData;
 }
 
 void setPollutionNums(deviceData_t *deviceData, uint16_t pollutionNums)
 {
 	deviceData->pollutionNums = pollutionNums;
+	free(deviceData->pollutions);
+	deviceData->pollutions = NULL;
 	deviceData->pollutions = (pollution_t *)malloc((deviceData->pollutionNums + remainingPollutionNums)  * sizeof(pollution_t));
+	memset(deviceData->pollutions, 0, (deviceData->pollutionNums + remainingPollutionNums) * sizeof(pollution_t));
 }
 
 uint8_t checkMN(uint8_t MN_len, uint16_t *current_MN, uint8_t *deviceData_MN)
@@ -96,6 +102,8 @@ uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData)
 	// {
 	// 	printf("set registers ok");
 	// }
+	free(values);
+	values = NULL;
 	return rc;
 }
 
@@ -121,6 +129,8 @@ uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data
 	// {
 	// 	printf("set registers ok\r\n");
 	// }
+	free(values);
+	values = NULL;
 	return rc;
 }
 
@@ -282,9 +292,13 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 		if (*deviceData == NULL)
 		{
 			if(MN_len==0||MN_len>26){
+				free(tab_rp_registers);
+				tab_rp_registers = NULL;
 				return MN_len_erro;
 			}
 			if(poolNums==0){
+				free(tab_rp_registers);
+				tab_rp_registers = NULL;
 				return poolNums_erro;
 			}
 			printf("NULL\r\n");
@@ -309,10 +323,14 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 		}
 		for (i = 0; i < pollutionNums; i++)
 		{
-			printf("pollution %d: code=w%s,data=%f,state=%d\r\n", i + 1, (*deviceData)->pollutions[i].code, (*deviceData)->pollutions[i].data, (*deviceData)->pollutions[i].state);
+			printf("pollution %d: code=%s,data=%f,state=%d\r\n", i + 1, (*deviceData)->pollutions[i].code, (*deviceData)->pollutions[i].data, (*deviceData)->pollutions[i].state);
 		}
+		free(tab_rp_registers);
+		tab_rp_registers = NULL;
 		return normal;
 	}
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
 	return noResponse;
 checkPollutionNums:
 	printf("checkPollutionNums %d\r\n",(*deviceData)->pollutionNums);
@@ -336,7 +354,8 @@ addNewDate:
 
 	flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
 	flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
-	
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
 	return newData;
 }
 
@@ -363,7 +382,8 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 	deviceData->hour = hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF);
 	deviceData->minute = hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8);
 	deviceData->second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
-
+	
+	pollutionNums = tab_rp_registers[pollutionNumsAddr];
 	for (i = 0; i < pollutionNums; i++)
 	{
 		deviceData->pollutions[i].code = pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i]);
