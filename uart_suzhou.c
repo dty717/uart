@@ -58,6 +58,7 @@ void core1_entry()
         
         // multicore_fifo_pop_blocking();	
         sleep_ms(5*60000);	
+        // sleep_ms(30000);	
         if(deviceData!=NULL){	
             uploadDevice(deviceData,uart0,UART0_EN_PIN);
         }
@@ -118,7 +119,7 @@ int main()
     gpio_put(uart0_EN, 1);
     gpio_put(uart1_EN, 1);
 
-    uart_init(uart0, BAUD_RATE);
+    uart_init(uart0, BAUD_RATE2);
     uart_init(uart1, BAUD_RATE);
 
     // Set the TX and RX pins by using the function select on the GPIO
