@@ -28,7 +28,8 @@
 #include "header/gps.h"
 #include "header/common/handler.h"
 
-#ifdef UART_CLO3
+
+#ifdef UART_TEST
 
 /// \tag::multicore_dispatch[]
 
@@ -55,72 +56,105 @@ uint8_t *flashData;
 
 int key1, key2, key3, key4;
 
+void printhelp() {
+    puts("\r\nCommands:");
+    puts("e0, ...\t: set test value");
+    puts("a\t: show all the index value");
+    puts("t\t: test value");
+    puts("k\t: keys value");
+    puts("d?\t: set debug value");
+    puts("f\t: set debug false");
+    puts("c\t: change pool");
+    
+}
+
+volatile uint8_t testVal  = 19;
+
 // Ask core 1 to print a string, to make things easier on core 0
 void core1_entry()
 {
+    uint8_t poolNum;
+    char c;
+    size_t i;
+
     while (1)
     {
-        char c = uart_rx_program_getc(pio, sm);
-        // putchar(c);
-        if(c!='\n'){
-            if(uart_rx_program_charIndex>=uart_rx_program_charLen){
-                uart_rx_program_charIndex = 0;
-                uart_rx_program_char[uart_rx_program_charIndex+1] = '\0';
+        c = getchar_unlocked();
+        // printf("get commond:%c\r\n", c);
+        switch (c) {
+            case 'e':
+                c = getchar_unlocked();
+                testVal = c -'0';
+                printf("set test value:%d\r\n", testVal);
+                break;
+            case 'a': {
+                modbus_rtu_t *ctx_rtu = ctxServer->backend_data;
+                printf("chars_rx_index:%d,chars_rx_server_index:%d,chars_rxed:%d\r\n",ctx_rtu->chars_rx_index,ctx_rtu->chars_rx_server_index,ctx_rtu->chars_rxed);
+                break;
             }
-            uart_rx_program_char[uart_rx_program_charIndex++] = c;
-        }else{
-            for (size_t i = 0; i < uart_rx_program_charIndex; i++)
-            {
-                uart_rx_program_char_copy[i] = uart_rx_program_char[i];
+            case 't': {
+                printf("testVal: %d\r\n", testVal);
+                break;
             }
-            uart_rx_program_char_copy[uart_rx_program_charIndex] = '\0';
-            uart_rx_program_char_copyIndex = uart_rx_program_charIndex;
-            uart_rx_program_charIndex = 0;
-            uart_rx_program_char[uart_rx_program_charIndex + 1] = '\0';
-            gps_response_type_t gps_response_type= handleGPSString(uart_rx_program_char_copy, uart_rx_program_char_copyIndex, gpsData);
-            if (gps_response_type == GNRMC||gps_response_type == GPRMC)
-            {
+            case 'k':
+                printf("key1:%d,key2:%d,key3:%d,key4:%d\r\n", key1,key2,key3,key4);
+                break;
+            case 'd':
+                c = getchar_unlocked();
+                modbus_set_debug(ctxServer,c);
+                printf("ctxServer debug: %d\r\n", ctxServer->debug);
+                break;
+            case 'f':
+                modbus_set_debug(ctxServer,false);
+                printf("ctxServer debug: %d\r\n", ctxServer->debug);
+                break;            
+            case '\r':
+            case '\n':
+                break;
+            case 'c':
 
-                if (gpsData->state == 'A')
-                {
-                    // printf("gps info:%.4d-%.2d-%.2d %.2d:%.2d:%.2d %f%c,%f%c\r\n", gpsData->year, gpsData->month, gpsData->date, gpsData->hour, gpsData->minute, gpsData->second,
-                    //        gpsData->latitude, gpsData->latitudeFlag, gpsData->longitude, gpsData->longitudeFlag);
-                    // printf("%d\r\n",flashData[0]);
-                    if(saveTimes==0){
-                        flashData[3] = '4';
-                        flashData[4] = '5';
-                        flashData[checkAddr + gps_yearAddr] = gpsData->year-2000;
-                        flashData[checkAddr + gps_monthAddr] = gpsData->month;
-                        flashData[checkAddr + gps_dateAddr] = gpsData->date;
-                        flashData[checkAddr + gps_hourAddr] = gpsData->hour;
-                        flashData[checkAddr + gps_minuteAddr] = gpsData->minute;
-                        flashData[checkAddr + gps_secondAddr] = gpsData->second;
-                        flashData[checkAddr + gps_stateAddr] = gpsData->state;
-                        AppendfloatToU8Array(gpsData->latitude, flashData, checkAddr + gps_latitudeAddr);
-                        flashData[checkAddr + gps_latitudeFlagAddr] = gpsData->latitudeFlag;
-                        AppendfloatToU8Array(gpsData->longitude, flashData, checkAddr + gps_longitudeAddr);
-                        flashData[checkAddr + gps_longitudeFlagAddr] = gpsData->longitudeFlag;
-                        flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
-                        flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
-                        for (size_t i = 0; i < InputDetectAddr-1; i += 2)
-                        {
-                            mb_mapping->tab_registers[i / 2] = (flashData[i] << 8) + flashData[i + 1];
-                        }
-                    }else{
-                        saveTimes++;
-                        if(saveTimes==10){
-                            saveTimes = 0;
-                        }
-                    }
+                poolNum = mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr];
+                poolNum++;
+                if(poolNum>mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumsAddr]){
+                    poolNum = 1;
                 }
-                else
-                {
-                    if(key4)
-                        printf("gps state:%c\r\n", gpsData->state);
-                }
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr] = poolNum;
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr] = 'A'+poolNum - 1 + ('C' << 8);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 1] = 'A'+poolNum - 1 + ('C' << 8);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 2] = 'A'+poolNum - 1 + ('C' << 8);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 3] = 'A'+poolNum - 1 + ('C' << 8);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 4] = 'A'+poolNum - 1 + ('C' << 8);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 5] = 'A'+poolNum - 1 + ('C' << 8);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 6] = 'D' + ('0' << 8);
 
-            }
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + YearMonthAddr] = 0x2110;
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr]++;
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = 0x1121;
+
+                uint16_t codes[] = {21001, 21011, 1018, 1019};
+                float datas[] = {2100.1, 2101.1, 101.8, 101.9};
+                for (i = 0; i < mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionNumsAddr]; i++)
+                {
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionCodeAddr + PollutionDataLen * i] = codes[i];
+                    uint8_t *arrayVal;
+                    arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
+                    floatToByteArray(datas[i]+poolNum - 1, arrayVal);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i] = arrayVal[0] + (arrayVal[1] << 8);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionStateAddr + PollutionDataLen * i] = 1;
+                }
+                printf("poolNum:%d\r\n",poolNum);
+                break;
+            case 'h':
+                printhelp();
+                break;
+            default:
+                printf("\nUnrecognised command: %c\n", c);
+                printhelp();
+                break;
         }
+
     }
 }
 
@@ -129,7 +163,7 @@ void on_uart0_rx() {
     while (uart_is_readable(uart0)) {
         uint8_t ch = uart_getc(uart0);
         // Can we send it back?
-        // printf("(%.2X)", ch);
+        printf("(%.2X)", ch);
         modbus_add_RXData(ctxServer,ch);
         if (uart_is_writable(uart0)) {
             // Change it slightly first!
@@ -157,21 +191,10 @@ void on_uart1_rx() {
 
 bool repeating_timer_callback(struct repeating_timer *t)
 {
-    if(key3)
-        printf("gpio_get at %d\r\n", gpio_get(InputDetect_PIN));
-    
-    if (gpio_get(InputDetect_PIN)==1)
-    {
-        flashData[InputDetectAddr * 2] = 0;
-        flashData[InputDetectAddr * 2 + 1] = 1;
-        mb_mapping->tab_registers[InputDetectAddr] = 1;
-    }
-    else
-    {
-        flashData[InputDetectAddr * 2] = 0;
-        flashData[InputDetectAddr * 2 + 1] = 0;
-        mb_mapping->tab_registers[InputDetectAddr] = 0;
-    }
+    key1 = gpio_get(KEY1_PIN);
+    key2 = gpio_get(KEY2_PIN);
+    key3 = gpio_get(KEY3_PIN);
+    key4 = gpio_get(KEY4_PIN);
     return true;
 }
 
@@ -184,7 +207,7 @@ void gpio_callback(uint gpio, uint32_t events) {
     // Put the GPIO event(s) that just happened into event_str
     // so we can print it
     gpio_event_string(event_str, events);
-    gpio_event_handle(gpio, events);
+    // gpio_event_handle(gpio, events);
 
     // printf("GPIO %d %s\n", gpio, event_str);
 }
@@ -192,6 +215,10 @@ void gpio_callback(uint gpio, uint32_t events) {
 int main()
 {
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+    const uint LED1 = LED1_PIN;
+    const uint LED2 = LED2_PIN;
+    const uint LED3 = LED3_PIN;
+    const uint LED4 = LED4_PIN;
     int res;
     int rc;
     int header_length;
@@ -200,9 +227,19 @@ int main()
     stdio_init_all();    
 
     gpio_init(LED_PIN);
+    gpio_init(LED1);
+    gpio_init(LED2);
+    gpio_init(LED3);
+    gpio_init(LED4);
     gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_set_dir(LED1, GPIO_OUT);
+    gpio_set_dir(LED2, GPIO_OUT);
+    gpio_set_dir(LED3, GPIO_OUT);
+    gpio_set_dir(LED4, GPIO_OUT);
+
     const uint uart0_EN = UART0_EN_PIN;
     const uint uart1_EN = UART1_EN_PIN;
+
     gpio_init(uart0_EN);
     gpio_init(uart1_EN);
     gpio_set_dir(uart0_EN, GPIO_OUT);
@@ -274,6 +311,8 @@ int main()
     key2 = gpio_get(KEY2_PIN);
     key3 = gpio_get(KEY3_PIN);
     key4 = gpio_get(KEY4_PIN);
+
+
     // Set up the state machine we're going to use to receive them.
     pio = pio0;
     sm = 0;
@@ -289,7 +328,7 @@ int main()
 
     header_length = modbus_get_header_length(ctxServer);
     modbus_connect(ctxServer);
-    modbus_set_slave(ctxServer, uploadAddr);
+    modbus_set_slave(ctxServer, 1);
     // if(key1){
     //     modbus_set_debug(ctxServer, TRUE);
     // }else{
@@ -341,39 +380,41 @@ int main()
     // uint8_t changeFlag = false;
     uint16_t dataLen =2 ;
     float data[dataLen];
-    for (i = 0; i < FLASH_PAGE_SIZE; i+=2)
-    {
-        flashData[i] = flash_target_contents[i];
-        flashData[i+1] = flash_target_contents[i+1];
-        mb_mapping->tab_registers[i/2] = (flashData[i]<<8)+flashData[i+1];
-    }
+    // for (i = 0; i < FLASH_PAGE_SIZE; i+=2)
+    // {
+    //     flashData[i] = flash_target_contents[i];
+    //     flashData[i+1] = flash_target_contents[i+1];
+    //     // mb_mapping->tab_registers[i/2] = (flashData[i]<<8)+flashData[i+1];
+    //     mb_mapping->tab_registers[i/2] = i;
+    //     // (flashData[i]<<8)+flashData[i+1];
+    // }
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+poolNumsAddr] = 3;
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+poolNumAddr] = 1;
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionNumsAddr] = 4;
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MN_lenAddr] = 7;
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr] = 'A'+('C'<<8);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr+1] = 'A'+('C'<<8);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr+2] = 'A'+('C'<<8);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr+3] = 'A'+('C'<<8);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr+4] = 'A'+('C'<<8);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr+5] = 'A'+('C'<<8);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MNAddr+6] = 'D'+('0'<<8);
 
-    if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'){
-        uint16_t *tab_rp_registers = NULL;
-        tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
-        for (i = 0; i < nb_points; i++)
-        {
-            tab_rp_registers[i] = (flash_target_contents[i*2+configAddr]<<8)+flash_target_contents[i*2+configAddr+1];
-        }
-        uint16_t MN_len =  (flash_target_contents[2*MN_lenAddr+configAddr]<<8) + flash_target_contents[2*MN_lenAddr+configAddr+1];
-        deviceData = new_deviceData(tab_rp_registers[poolNumsAddr], tab_rp_registers[pollutionNumsAddr], tab_rp_registers[MN_lenAddr]);
-        deviceData->poolNum = tab_rp_registers[poolNumAddr];
-        deviceData->PW = "123456";
-        addNewDate(deviceData,tab_rp_registers);
-    }
-    if(flash_target_contents[3]=='4'&&flash_target_contents[4]=='5'){
-        gpsData->year = flash_target_contents[checkAddr + gps_yearAddr] + 2000;
-        gpsData->month = flash_target_contents[checkAddr + gps_monthAddr];
-        gpsData->date = flash_target_contents[checkAddr + gps_dateAddr];
-        gpsData->hour = flash_target_contents[checkAddr + gps_hourAddr];
-        gpsData->minute = flash_target_contents[checkAddr + gps_minuteAddr];
-        gpsData->second = flash_target_contents[checkAddr + gps_secondAddr];
-        gpsData->latitude = bytesToFloat(flash_target_contents[checkAddr + gps_latitudeAddr + 3], flash_target_contents[checkAddr + gps_latitudeAddr + 2],
-                                         flash_target_contents[checkAddr + gps_latitudeAddr + 1], flash_target_contents[checkAddr + gps_latitudeAddr]);
-        gpsData->latitudeFlag = flash_target_contents[checkAddr + gps_latitudeFlagAddr];
-        gpsData->longitude = bytesToFloat(flash_target_contents[checkAddr + gps_longitudeAddr + 3], flash_target_contents[checkAddr + gps_longitudeAddr + 2],
-                                          flash_target_contents[checkAddr + gps_longitudeAddr + 1], flash_target_contents[checkAddr + gps_longitudeAddr]);
-        gpsData->longitudeFlag = flash_target_contents[checkAddr + gps_longitudeFlagAddr];
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+YearMonthAddr] = 0x2110;
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+DateHourAddr] = 0x1200;
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MinuteSecondAddr] = 0x1121;
+    uint16_t codes[] = {21001, 21011, 1018, 1019};
+    float datas[] = {2100.1, 2101.1, 101.8, 101.9};
+    for (i = 0; i < mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionNumsAddr]; i++)
+    {
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionCodeAddr + PollutionDataLen * i] = codes[i];
+        uint8_t *arrayVal;
+        arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
+        floatToByteArray(datas[i], arrayVal);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i] = arrayVal[0] + (arrayVal[1] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionStateAddr + PollutionDataLen * i] = 1;
     }
 
     struct repeating_timer timer;
@@ -383,74 +424,31 @@ int main()
     // To do this we run a dispatcher on the second core that accepts a function
     // pointer and runs it
     multicore_launch_core1(core1_entry);
-
+    uint8_t getTimes = 0;
     while (true)
     {
-        printf("uart_CLO3\r\n");
-
-        // for (size_t j = 0; j < FLASH_PAGE_SIZE; j++)
-        // {
-        //     printf("[%.2X] ", flash_target_contents[j]);
-        // }
-        // printf("\r\n");
-        // printf("%d ?== %d\r\n",&flashData,&flashData[0]);
-
-        // if(1){
-        //     sleep_ms(1000);
-        //     gpio_put(LED_PIN, 0);
-        //     printf("123\r\n");
-        //     sleep_ms(1000);
-        //     gpio_put(LED_PIN, 1);
-        //     printf("123\r\n");
-        //     sleep_ms(1000);
-        //     gpio_put(LED_PIN, 0);
-        //     printf("123\r\n");
-        //     sleep_ms(1000);
-        //     gpio_put(LED_PIN, 1);
-        //     printf("123\r\n");
-        // }
+        printf("\r\nuart_test\r\n");
+        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x45,0x03,0x41,0x9A));
+        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x45,0x03,0x51,0x9A));
+        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x45,0x03,0x61,0x9A));
+        // sleep_ms(1000);
+        // continue;
+        gpio_put(LED1,getTimes&1);
+        gpio_put(LED2,(getTimes>>1)&1);
+        gpio_put(LED3,(getTimes>>2)&1);
+        gpio_put(LED4,(getTimes>>3)&1);
+        getTimes++;
         do
         {
-            // ctxServer_rtu->confirmation_to_ignore = 0;
-            // modbus_flush(ctxServer);
             rc = modbus_receive(ctxServer, query);
+            if(testVal==5){
+                printf("modbus_receive\r\n");
+            }
             /* Filtered queries return 0 */
         } while (rc == 0 || rc == -1);
-        // if (rc == -1 && errno != EMBBADCRC)
-        // {
-        //     /* Quit */
-        //     break;
-        // }
-        // if(1){
-        //     printf("slave: %d\r\n\r\n", ctxServer->slave);
-        //     for (size_t j = 0; j < rc; j++)
-        //     {
-        //         printf("[%.2X] ", query[j]);
-        //     }
-        //     printf("\r\n");
-        //     printf("**%.2X\r\n", MODBUS_GET_INT16_FROM_INT8(query, header_length + 1));
 
-        //     continue;
-        // }
         rc = modbus_reply(ctxServer, query, rc, mb_mapping);
-        // if (rc == -1) {
-        //     break;
-        // }
 
-        // if(deviceData!=NULL&&ctx->debug)
-        //     printf("out %d %d %d\r\n", deviceData->poolNums, deviceData->pollutionNums, deviceData->MN_len);
-
-        // adc_select_input(PH_ADC);
-        // uint adc_PH = adc_read();
-        // adc_select_input(TUR_ADC);
-        // uint adc_TUR = adc_read();
-        // data[0] = _4_20mvTofloat(adc_PH * conversion_factor / 160 * 1000, 0, 7);
-        // data[1] = _4_20mvTofloat(adc_TUR * conversion_factor / 160 * 1000, 0, 100);
-
-        // // printf("Raw value: 0x%03x, voltage: %f V\n", result, adc_PH * conversion_factor);
-        // sleep_ms(1000);
-        // val = !val;
-        // gpio_put(LED_PIN, val);
     }
     return 0;
 }

@@ -236,7 +236,7 @@ int main()
 
     while (true)
     {
-        printf("uart_suzhou\r\n");
+        printf("uart\r\n");
         for (size_t j = 0; j < nb_points; j++)
         {
             printf("[%.2X] ", tab_rp_registers[j]);

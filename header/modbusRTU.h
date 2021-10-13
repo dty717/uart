@@ -13,8 +13,7 @@
 #define _rtu_modbus_CHECKSUM_LENGTH    2
 
 #define MODBUS_RTU_MAX_ADU_LENGTH  256
-#define MODBUS_RTU_MAX_RESPONSE_TIMES  3
-#define MODBUS_RTU_MAX_RESPONSE_TIME   50
+#define MODBUS_RTU_MAX_RESPONSE_TIME   20
 #define MODBUS_RTU_MIN_RESPONSE_TIME   2
 
 typedef struct _rtu_modbus {

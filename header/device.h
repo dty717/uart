@@ -29,8 +29,8 @@ typedef enum {
 #define InputDetectAddr (checkAddr+gps_longitudeFlagAddr+1)/2+1
 
 typedef enum {
-    poolNumAddr,
     poolNumsAddr,
+    poolNumAddr,
     pollutionNumsAddr,
     MN_lenAddr,
     MNAddr,
@@ -87,6 +87,7 @@ typedef struct deviceData {
 	uint8_t minute;
 	uint8_t second;
 } deviceData_t;
+
 uint8_t *pollutionCode(uint16_t code);
 
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData);
@@ -96,6 +97,7 @@ deviceData_t* new_deviceData(uint16_t poolNums,uint16_t pollutionNums,uint8_t MN
 void setPollutionNums(deviceData_t *deviceData,uint16_t pollutionNums);
 uint8_t checkMN(uint8_t MN_len,uint16_t *current_MN,uint8_t *deviceData_MN);
 uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData);
+uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *valueDatas);
 uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data,uint16_t dataLen);
 void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers);
 

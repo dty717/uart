@@ -75,22 +75,22 @@ float bytesToFloat(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 
     return output;
 }
-void floatToByteArray(float f, uint8_t *arrarVal)
+void floatToByteArray(float f, uint8_t *arrayVal)
 {
     unsigned int asInt = *((int *)&f);
     int i;
     for (i = 0; i < 4; i++)
     {
-        arrarVal[i] = (asInt >> 8 * i) & 0xFF;
+        arrayVal[i] = (asInt >> 8 * i) & 0xFF;
     }
 }
-void AppendfloatToU8Array(float f, uint8_t *arrarVal, uint16_t index)
+void AppendfloatToU8Array(float f, uint8_t *arrayVal, uint16_t index)
 {
     unsigned int asInt = *((int *)&f);
     int i;
     for (i = 0; i < 4; i++)
     {
-        arrarVal[index + i] = (asInt >> 8 * i) & 0xFF;
+        arrayVal[index + i] = (asInt >> 8 * i) & 0xFF;
     }
 }
 float _4_20mvTofloat(float I,float Imin,float Imax){

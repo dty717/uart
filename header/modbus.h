@@ -236,6 +236,7 @@ typedef struct _modbus_backend {
     int (*select) (modbus_t *ctx, fd_set *rset, struct timeval *tv, int msg_length);
     void (*free) (modbus_t *ctx);
     int (*add_RXData)(modbus_t *ctx, uint8_t ch);
+    int (*header)(modbus_t *ctx, uint8_t *msg);
 } modbus_backend_t;
 
 struct _modbus {
@@ -261,6 +262,8 @@ int modbus_connect(modbus_t *ctx);
 int modbus_set_debug(modbus_t *ctx, int flag);
 int modbus_set_slave(modbus_t *ctx, int slave);
 int modbus_add_RXData(modbus_t *ctx, uint8_t ch);
+int modbus_header(modbus_t *ctx, uint8_t *msg);
+
 int modbus_write_bits(modbus_t *ctx, int addr, int nb, const uint8_t *src);
 
 MODBUS_API int modbus_read_registers(modbus_t *ctx, int addr, int nb, uint16_t *dest);

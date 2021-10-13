@@ -20,6 +20,11 @@
 #define UART1_TX_PIN 4
 #define UART1_RX_PIN 5
 
+#define LED1_PIN 11
+#define LED2_PIN 12
+#define LED3_PIN 13
+#define LED4_PIN 14
+
 #define KEY1_PIN 6
 #define KEY2_PIN 7
 #define KEY3_PIN 8
@@ -35,11 +40,19 @@
 
 #define InputDetect_PIN 21
 
+#define HistroySaveAddr 150
+
 // #define UART
                             #ifndef UART
+#define UART_TEST
+                            #ifndef UART_TEST
+// #define UART_KUNSHAN
+                            #ifndef UART_KUNSHAN
 #define UART_SUZHOU
                             #ifndef UART_SUZHOU
 #define UART_CLO3
+                            #endif
+                            #endif
                             #endif
                             #endif
                             #endif

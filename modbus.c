@@ -157,6 +157,17 @@ int modbus_add_RXData(modbus_t *ctx, uint8_t ch)
     return ctx->backend->add_RXData(ctx, ch);
 }
 
+
+int modbus_header(modbus_t *ctx, uint8_t *msg)
+{
+    if (ctx == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    return ctx->backend->header(ctx, msg);
+}
+
 /*
  *  ---------- Request     Indication ----------
  *  | Client | ---------------------->| Server |
@@ -1305,7 +1316,6 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
     }
     while (length_to_read != 0) {
         // rc = ctx->backend->select(ctx, &rset, p_tv, length_to_read);
-        
         if (rc == -1) {
             _error_print(ctx, "select");
             if (ctx->error_recovery & MODBUS_ERROR_RECOVERY_LINK) {
@@ -1363,7 +1373,11 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
         if (length_to_read == 0) {
             switch (step) {
             case _STEP_FUNCTION:
+                if(ctx->slave!=modbus_header(ctx,msg)){
+                    return -1;
+                }
                 /* Function code position */
+
                 length_to_read = compute_meta_length_after_function(
                     msg[ctx->backend->header_length],
                     msg_type);

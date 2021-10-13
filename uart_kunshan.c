@@ -27,7 +27,7 @@
 #include "header/gps.h"
 #include "header/common/handler.h"
 
-#ifdef UART_SUZHOU
+#ifdef uart_kunshan
 
 /// \tag::multicore_dispatch[]
 
@@ -240,17 +240,19 @@ int main()
         // uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*(deviceData->poolNum-1);
         // historyData = (float *)malloc(nb_points * sizeof(float));
 
-        // for (i = 0; i < poolNums; i++)
-        // {
-        //     // *((pollutionNums+remainingPollutionNums)*4+1)
-        //     uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*i;
-        //     if(flashData[HistroySaveAddr+shiftHistoryAddr]==i+1){
-        //         for (size_t j = 0; j < pollutionNums; j++)
-        //         {
-        //             historyData[i*(pollutionNums+remainingPollutionNums)+j] = flashData[i+j];
-        //         }
-        //     }
-        // }
+        for (i = 0; i < poolNums; i++)
+        {
+            // *((pollutionNums+remainingPollutionNums)*4+1)
+            uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*i;
+            if(flashData[HistroySaveAddr+shiftHistoryAddr]==i+1){
+                for (size_t j = 0; j < pollutionNums; j++)
+                {
+                    historyData[i*(pollutionNums+remainingPollutionNums)+j] = flashData[i+j];
+                }
+            }
+            // if(flashData[HistroySaveAddr + shiftHistoryAddr+1+4*i]){
+            // }
+        }
     }
 
     // This example dispatches arbitrary functions to run on the second core
@@ -264,21 +266,20 @@ int main()
     while (true)
     {
         printf("uart_suzhou\r\n");
-        // print_buf(flashData,40);
-        // printf("\r\n");
-        // print_buf(flashData+16,40);
-        
+        print_buf(flashData,40);
+        printf("\r\n");
+        print_buf(flashData+16,40);
         printf("\r\n");
         if(deviceData!=NULL&&ctx->debug)
             printf("out %d %d %d\r\n", deviceData->poolNums, deviceData->pollutionNums, deviceData->MN_len);
         times++;
-        if(times>4){
+        if(times>10){
             times = 0;
             if(poolNums){
-                set_led_values(ctx,currentPool+1,(pollutionNums+remainingPollutionNums)*2,flashData+HistroySaveAddr+4*currentPool*(pollutionNums+remainingPollutionNums));
+                set_led_values(ctx,currentPool,(pollutionNums+remainingPollutionNums)*2,flashData+HistroySaveAddr+currentPool*(pollutionNums+remainingPollutionNums));
                 currentPool++;
-                if(currentPool>=poolNums){
-                    currentPool = 0;
+                if(currentPool>poolNums){
+                    currentPool = 1;
                 }
             }
         }
@@ -302,6 +303,7 @@ int main()
         // set_led_valueByAddr(ctx, LED_VALUE_ADDRESS + setLedValueNums * 2, data, dataLen);
         // printf("PH:%f,TUR%f\r\n",data[0],data[1]);
         response_type_t needUpdate = ask_all_devices(ctx,&deviceData);
+
 
         switch (needUpdate)
         {

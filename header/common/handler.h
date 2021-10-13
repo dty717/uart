@@ -12,9 +12,9 @@ extern "C"
     float _4_20mvTofloat(float I, float Imin, float Imax);
 
     float bytesToFloat(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3);
-    void floatToByteArray(float f, uint8_t *arrarVal);
+    void floatToByteArray(float f, uint8_t *arrayVal);
     void *AppendfloatToU16Array(float f, uint16_t *target, uint16_t index);
-    void AppendfloatToU8Array(float f, uint8_t *arrarVal, uint16_t index);
+    void AppendfloatToU8Array(float f, uint8_t *arrayVal, uint16_t index);
     int hexToInt(int hex);
     int intToHex(int hex);
     void _append(uint8_t *target, uint16_t targetSize, uint8_t *origin, uint16_t *index);

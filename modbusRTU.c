@@ -65,7 +65,14 @@ static ssize_t _rtu_modbus_send(modbus_t *ctx, const uint8_t *req, int req_lengt
     modbus_rtu_t *ctx_rtu = ctx->backend_data;
     gpio_put(ctx_rtu->uart_en_pin, 1);
     sleep_ms(20);
-    uart_write_blocking(ctx_rtu->uart,req,req_length);
+    if (uart_is_writable(ctx_rtu->uart))
+    {
+        uart_write_blocking(ctx_rtu->uart,req,req_length);
+    }else{
+        if(ctx->debug){
+            printf("err:uart%s not writable\n",ctx_rtu->device);
+        }
+    }
     sleep_ms(5);
     gpio_put(ctx_rtu->uart_en_pin, 0);
     // sleep_ms(2);
@@ -90,7 +97,7 @@ static int _rtu_modbus_receive(modbus_t *ctx, uint8_t *req)
     } else {
 
         rc = _modbus_receive_msg(ctx, req, MSG_INDICATION);
-        if (rc == 0) {
+        if (rc == 0&&ctx->debug) {
             printf("MSG_INDICATION\r\n");
 
             /* The next expected message is a confirmation to ignore */
@@ -123,7 +130,7 @@ static int _rtu_modbus_receive(modbus_t *ctx, uint8_t *req)
 static ssize_t _rtu_modbus_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
 {
     modbus_rtu_t *ctx_rtu = ctx->backend_data;
-    int8_t waitTimes = MODBUS_RTU_MAX_RESPONSE_TIMES;
+    int8_t waitTimes = ctx_rtu->isServer?MODBUS_RTU_MAX_RESPONSE_TIME:MODBUS_RTU_MIN_RESPONSE_TIME;
 
     while((ctx_rtu->chars_rxed-ctx_rtu->chars_rx_index)<rsp_length){
         if (!ctx_rtu->isServer) {
@@ -136,6 +143,7 @@ static ssize_t _rtu_modbus_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
                 return -1;
             }
         }else{
+            waitTimes--;
             sleep_ms(MODBUS_RTU_MIN_RESPONSE_TIME*rsp_length);
             if (waitTimes <= 0)
             {
@@ -302,6 +310,10 @@ static int _rtu_modbus_add_RXData(modbus_t *ctx, uint8_t ch) {
     return 0;
 }
 
+static int _rtu_modbus_header(modbus_t *ctx, uint8_t *msg) {
+    return msg[0];
+}
+
 const modbus_backend_t _rtu_modbus_backend = {
     _MODBUS_BACKEND_TYPE_RTU,
     _rtu_modbus_HEADER_LENGTH,
@@ -322,7 +334,8 @@ const modbus_backend_t _rtu_modbus_backend = {
     _rtu_modbus_flush,
     _rtu_modbus_select,
     _rtu_modbus_free,
-    _rtu_modbus_add_RXData
+    _rtu_modbus_add_RXData,
+    _rtu_modbus_header
 };
 
 

@@ -8,6 +8,8 @@ pico_sdk_init()
 add_executable(uart
   uart.c
   uart_suzhou.c
+  uart_test.c
+  uart_kunshan.c
   uart_CLO3.c
   device.c
   modbus.c

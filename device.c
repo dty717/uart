@@ -8,6 +8,7 @@
 #include "hardware/flash.h"
 #include "header/flash.h"
 
+
 uint8_t *flashData;
 
 deviceData_t *new_deviceData(uint16_t poolNums, uint16_t pollutionNums, uint8_t MN_len)
@@ -78,6 +79,35 @@ uint8_t MN_len;
 // uint8_t hour;
 // uint8_t minute;
 // uint8_t second;
+
+
+uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *valueDatas)
+{
+	size_t i = 0;
+	modbus_set_slave(ctx,ledAddr);
+
+	int rc = 0;
+	rc = modbus_write_register(ctx, LED_POOL_ADDRESS, pool);
+	// if (rc > 0)
+	// {
+	// 	printf("set register ok");
+	// }
+	uint16_t *values;
+	values = (uint16_t *)malloc(valueNums * sizeof(uint16_t));
+	for ( i = 0; i < valueNums; i++)
+	{
+		values[i] = (valueDatas[i*2]<<8)+valueDatas[i*2+1];
+	}
+	sleep_ms(1000);
+	rc = modbus_write_registers(ctx, LED_VALUE_ADDRESS,valueNums,values);
+	// if (rc > 0)
+	// {
+	// 	printf("set registers ok");
+	// }
+	free(values);
+	values = NULL;
+	return rc;
+}
 
 
 uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData)
@@ -319,7 +349,7 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 			{
 				goto checkPollutionNums;
 			}
-			printf("deviceData poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n", (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
+			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n",(*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
 		}
 		for (i = 0; i < pollutionNums; i++)
 		{
@@ -384,6 +414,9 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 	deviceData->second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
 	
 	pollutionNums = tab_rp_registers[pollutionNumsAddr];
+	#ifdef UART_SUZHOU
+		uint16_t shiftHistoryAddr = 4*(pollutionNums+remainingPollutionNums)*(deviceData->poolNum-1);
+	#endif
 	for (i = 0; i < pollutionNums; i++)
 	{
 		deviceData->pollutions[i].code = pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i]);
@@ -396,6 +429,14 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
 		// printf("deviceData  %f  %f  %f  %f\r\n",bytesToFloat(b0, b1, b2, b3),bytesToFloat(b2, b3, b0, b1),bytesToFloat(b1, b0, b3, b2),bytesToFloat(b3, b2, b1, b0));
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
+		#ifdef UART_SUZHOU
+			flashData[HistroySaveAddr + shiftHistoryAddr + 4 * i] = b0;
+			flashData[HistroySaveAddr + shiftHistoryAddr + 1 + 4 * i] = b1;
+			flashData[HistroySaveAddr + shiftHistoryAddr + 2 + 4 * i] = b2;
+			flashData[HistroySaveAddr + shiftHistoryAddr + 3 + 4 * i] = b3;
+		#endif
 	}
+
+
 
 }
