@@ -236,7 +236,7 @@ int main()
         deviceData->poolNum = tab_rp_registers[poolNumAddr];
         deviceData->PW = "123456";
         addNewDate(deviceData,tab_rp_registers);
-        
+
         // uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*(deviceData->poolNum-1);
         // historyData = (float *)malloc(nb_points * sizeof(float));
 

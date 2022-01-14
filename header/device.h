@@ -5,6 +5,7 @@
 #include "hardware/uart.h"
 #include "modbus.h"
 #include "modbusRTU.h"
+#include "../config.h"
 
 #define MN_MAX_LENGTH     30
 #define PW_LENGTH     6
@@ -34,18 +35,39 @@ typedef enum {
     pollutionNumsAddr,
     MN_lenAddr,
     MNAddr,
+#ifdef UART_JIANGNING
+    YearMonthAddr = 4,
+#else
     YearMonthAddr = MNAddr+12,
+#endif
     DateHourAddr,
     MinuteSecondAddr,
     pollutionCodeAddr,
+#ifdef UART_JIANGNING
+    pollutionDataAddr = 0,
+#else
     pollutionDataAddr,
+#endif
     pollutionStateAddr=pollutionDataAddr+2,
 } deviceDataAddr;//uint 16
+
+
 
 
 #define UT_REGISTERS_ADDRESS 0x57
 #define LED_POOL_ADDRESS 0x10C0
 #define LED_VALUE_ADDRESS 0x5042
+
+
+#define COMMON_DEVICE_REGISTERS_ADDRESS 0x0340
+#define COMMON_DEVICE_nb_points 0x20
+
+#ifdef UART_JIANGNING
+    #define COMMON_DEVICE_MN "32018880000001"
+#else
+    #define COMMON_DEVICE_MN "88888880000001"
+#endif
+#define COMMON_DEVICE_CODE "011"
 
 #define nb_points 0x2B
 #define setLedValueNums 6
@@ -53,7 +75,6 @@ typedef enum {
 #define deviceAddr 1
 #define uploadAddr 0x80
 
-#define remainingPollutionNums 2
 typedef enum {
     noResponse=0,
     newData,
@@ -92,6 +113,7 @@ uint8_t *pollutionCode(uint16_t code);
 
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData);
 response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData);
+response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData);
 
 deviceData_t* new_deviceData(uint16_t poolNums,uint16_t pollutionNums,uint8_t MN_len);
 void setPollutionNums(deviceData_t *deviceData,uint16_t pollutionNums);

@@ -8,7 +8,6 @@
 #include "hardware/flash.h"
 #include "header/flash.h"
 
-
 uint8_t *flashData;
 
 deviceData_t *new_deviceData(uint16_t poolNums, uint16_t pollutionNums, uint8_t MN_len)
@@ -32,7 +31,7 @@ void setPollutionNums(deviceData_t *deviceData, uint16_t pollutionNums)
 	deviceData->pollutionNums = pollutionNums;
 	free(deviceData->pollutions);
 	deviceData->pollutions = NULL;
-	deviceData->pollutions = (pollution_t *)malloc((deviceData->pollutionNums + remainingPollutionNums)  * sizeof(pollution_t));
+	deviceData->pollutions = (pollution_t *)malloc((deviceData->pollutionNums + remainingPollutionNums) * sizeof(pollution_t));
 	memset(deviceData->pollutions, 0, (deviceData->pollutionNums + remainingPollutionNums) * sizeof(pollution_t));
 }
 
@@ -55,36 +54,33 @@ uint8_t checkMN(uint8_t MN_len, uint16_t *current_MN, uint8_t *deviceData_MN)
 	return 1;
 }
 
-
-
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData)
 {
-	response_type_t needUpdate =  ask_device(ctx,deviceData);
+	response_type_t needUpdate = ask_device(ctx, deviceData);
 	// needUpdate = 1;
 	// (*deviceData)->poolNum = 1;
 	// printf("needUpdate:%d\r\n",needUpdate);
 
 	return needUpdate;
-	// printf("middle %d %d %d\r\n", (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len);
-	// ask_device
 }
 
 uint16_t poolNum;
 uint16_t poolNums;
 uint16_t pollutionNums;
 uint8_t MN_len;
-// uint8_t year;
-// uint8_t month;
-// uint8_t date;
-// uint8_t hour;
-// uint8_t minute;
-// uint8_t second;
 
+float value;
+uint8_t year;
+uint8_t month;
+uint8_t date;
+uint8_t hour;
+uint8_t minute;
+uint8_t second;
 
-uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *valueDatas)
+uint8_t set_led_values(modbus_t *ctx, uint8_t pool, uint16_t valueNums, uint8_t *valueDatas)
 {
 	size_t i = 0;
-	modbus_set_slave(ctx,ledAddr);
+	modbus_set_slave(ctx, ledAddr);
 
 	int rc = 0;
 	rc = modbus_write_register(ctx, LED_POOL_ADDRESS, pool);
@@ -94,12 +90,13 @@ uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *v
 	// }
 	uint16_t *values;
 	values = (uint16_t *)malloc(valueNums * sizeof(uint16_t));
-	for ( i = 0; i < valueNums; i++)
+	for (i = 0; i < valueNums; i++)
 	{
-		values[i] = (valueDatas[i*2]<<8)+valueDatas[i*2+1];
+		values[i] = (valueDatas[i * 2] << 8) + valueDatas[i * 2 + 1];
 	}
-	sleep_ms(1000);
-	rc = modbus_write_registers(ctx, LED_VALUE_ADDRESS,valueNums,values);
+	sleep_ms(500);
+	rc = modbus_write_registers(ctx, LED_VALUE_ADDRESS, valueNums, values);
+	sleep_ms(200);
 	// if (rc > 0)
 	// {
 	// 	printf("set registers ok");
@@ -109,11 +106,10 @@ uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *v
 	return rc;
 }
 
-
 uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData)
 {
 	size_t i = 0;
-	modbus_set_slave(ctx,ledAddr);
+	modbus_set_slave(ctx, ledAddr);
 
 	int rc = 0;
 	rc = modbus_write_register(ctx, LED_POOL_ADDRESS, deviceData->poolNum);
@@ -122,12 +118,12 @@ uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData)
 	// 	printf("set register ok");
 	// }
 	uint16_t *values;
-	values = (uint16_t *)malloc(2*deviceData->pollutionNums * sizeof(uint16_t));
-	for ( i = 0; i < deviceData->pollutionNums; i++)
+	values = (uint16_t *)malloc(2 * deviceData->pollutionNums * sizeof(uint16_t));
+	for (i = 0; i < deviceData->pollutionNums; i++)
 	{
-		AppendfloatToU16Array(deviceData->pollutions[i].data,values,i*2);
+		AppendfloatToU16Array(deviceData->pollutions[i].data, values, i * 2);
 	}
-	rc = modbus_write_registers(ctx, LED_VALUE_ADDRESS,setLedValueNums*2,values);
+	rc = modbus_write_registers(ctx, LED_VALUE_ADDRESS, setLedValueNums * 2, values);
 	// if (rc > 0)
 	// {
 	// 	printf("set registers ok");
@@ -137,10 +133,10 @@ uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData)
 	return rc;
 }
 
-uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data,uint16_t dataLen)
+uint8_t set_led_valueByAddr(modbus_t *ctx, uint16_t led_value_address, float *data, uint16_t dataLen)
 {
 	size_t i = 0;
-	modbus_set_slave(ctx,ledAddr);
+	modbus_set_slave(ctx, ledAddr);
 
 	int rc = 0;
 	// if (rc > 0)
@@ -148,13 +144,13 @@ uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data
 	// 	printf("set register ok\r\n");
 	// }
 	uint16_t *values;
-	values = (uint16_t *)malloc(2*dataLen * sizeof(uint16_t));
-	for ( i = 0; i < dataLen; i++)
+	values = (uint16_t *)malloc(2 * dataLen * sizeof(uint16_t));
+	for (i = 0; i < dataLen; i++)
 	{
-		AppendfloatToU16Array(data[i],values,i*2);
+		AppendfloatToU16Array(data[i], values, i * 2);
 	}
-	rc = modbus_write_registers(ctx, led_value_address,dataLen*2,values);
-	
+	rc = modbus_write_registers(ctx, led_value_address, dataLen * 2, values);
+
 	// if (rc > 0)
 	// {
 	// 	printf("set registers ok\r\n");
@@ -166,8 +162,92 @@ uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data
 
 uint8_t *pollutionCode(uint16_t code)
 {
+#ifdef UART_KUNSHAN
 	switch (code)
 	{
+
+	case 1:
+		return "001";
+	case 2:
+		return "002";
+	case 3:
+		return "003";
+	case 10:
+		return "010";
+	case 11:
+		return "011";
+	case 15:
+		return "015";
+	case 21:
+		return "021";
+	case 22:
+		return "022";
+	case 23:
+		return "023";
+	case 24:
+		return "024";
+	case 25:
+		return "025";
+	case 26:
+		return "026";
+	case 27:
+		return "027";
+	case 28:
+		return "028";
+	case 29:
+		return "029";
+	case 30:
+		return "030";
+	case 31:
+		return "031";
+	case 32:
+		return "032";
+	case 33:
+		return "033";
+	case 34:
+		return "034";
+	case 35:
+		return "035";
+	case 36:
+		return "036";
+	case 37:
+		return "037";
+	case 38:
+		return "038";
+	case 39:
+		return "039";
+	case 40:
+		return "040";
+	case 41:
+		return "041";
+	case 60:
+		return "060";
+	case 61:
+		return "061";
+	case 65:
+		return "065";
+	case 80:
+		return "080";
+	case 101:
+		return "101";
+		// case 99001:
+		// 	return "w99001";
+		// break;
+	default:
+		return "xxx";
+		// break;
+	}
+//todo why not work?
+	// uint8_t *_pollutionCode;
+	// _pollutionCode = (uint8_t *)malloc(3 * sizeof(uint8_t));
+	// _pollutionCode[0] = code/100%10;
+	// _pollutionCode[1] = code/10%10;
+	// _pollutionCode[2] = code%10;
+	// return _pollutionCode;
+#else
+	switch (code)
+	{
+
 	case 0:
 		return "w00000";
 	case 1001:
@@ -292,23 +372,118 @@ uint8_t *pollutionCode(uint16_t code)
 		return "w33001";
 	case 33007:
 		return "w33007";
-	// case 99001:
-	// 	return "w99001";
+		// case 99001:
+		// 	return "w99001";
 		break;
 	default:
 		break;
 	}
 	return "";
+#endif
 }
 
-response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
+response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData)
 {
 
 	int i = 0;
 	uint16_t *tab_rp_registers = NULL;
 
+	tab_rp_registers = (uint16_t *)malloc(COMMON_DEVICE_nb_points * sizeof(uint16_t));
+	modbus_set_slave(ctx, deviceAddr);
+	int rc = 0;
+	rc = modbus_read_registers(ctx, COMMON_DEVICE_REGISTERS_ADDRESS,
+							   COMMON_DEVICE_nb_points, tab_rp_registers);
+
+	if (rc > 0)
+	{
+		print_buf(tab_rp_registers, 64);
+
+		uint8_t b0 = (uint8_t)(tab_rp_registers[0] >> 8);
+		uint8_t b1 = (uint8_t)(tab_rp_registers[0] & 0x00FF);
+		uint8_t b2 = (uint8_t)(tab_rp_registers[1] >> 8);
+		uint8_t b3 = (uint8_t)(tab_rp_registers[1] & 0x00FF);
+		value = bytesToFloat(b0, b1, b2, b3);
+
+		year = hexToInt(tab_rp_registers[YearMonthAddr] >> 8);
+		month = hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF);
+		date = hexToInt(tab_rp_registers[DateHourAddr] >> 8);
+		hour = hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF);
+		minute = hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8);
+		second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
+
+		if (*deviceData == NULL)
+		{
+			poolNums = 1;
+			pollutionNums = 1;
+#ifdef UART_JIANGNING
+			MN_len = 14;
+#else
+			MN_len = 24;
+#endif
+			poolNum = 1;
+			*deviceData = new_deviceData(poolNums, pollutionNums, MN_len);
+			(*deviceData)->poolNum = poolNum;
+			(*deviceData)->PW = "123456";
+			// printf("in %d %d %d\r\n", (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len);
+			goto addNewCommonDate;
+		}
+		else
+		{
+			if ((*deviceData)->year != year ||
+				(*deviceData)->month != month ||
+				(*deviceData)->date != date ||
+				(*deviceData)->hour != hour ||
+				(*deviceData)->minute != minute ||
+				(*deviceData)->second != second)
+			{
+				goto checkPollutionNums;
+			}
+			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
+		}
+
+		// printf("val:%d %d %d %d %d %d \r\n", year, month,date ,hour,minute,second);
+
+		free(tab_rp_registers);
+		tab_rp_registers = NULL;
+		return normal;
+	}
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
+	return noResponse;
+checkPollutionNums:
+	printf("checkPollutionNums %d\r\n", (*deviceData)->pollutionNums);
+	if (pollutionNums != (*deviceData)->pollutionNums)
+	{
+		setPollutionNums(*deviceData, pollutionNums);
+		(*deviceData)->poolNums = poolNums;
+	}
+addNewCommonDate:
+	printf("addNewDate\r\n");
+	addNewCommonDate(*deviceData, tab_rp_registers);
+
+	flashData[0] = '1';
+	flashData[1] = '2';
+	flashData[2] = '3';
+	for (i = 0; i < COMMON_DEVICE_nb_points; i++)
+	{
+		flashData[i * 2 + configAddr] = tab_rp_registers[i] >> 8;
+		flashData[i * 2 + configAddr + 1] = tab_rp_registers[i] & 0xff;
+	}
+
+	flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
+	flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
+	return newData;
+}
+
+response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
+{
+	int i = 0;
+	uint16_t *tab_rp_registers = NULL;
+
 	tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
-	modbus_set_slave(ctx,deviceAddr);
+	modbus_set_slave(ctx, deviceAddr);
 	int rc = 0;
 	rc = modbus_read_registers(ctx, UT_REGISTERS_ADDRESS,
 							   nb_points, tab_rp_registers);
@@ -321,12 +496,14 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 		MN_len = tab_rp_registers[MN_lenAddr];
 		if (*deviceData == NULL)
 		{
-			if(MN_len==0||MN_len>26){
+			if (MN_len == 0 || MN_len > 26)
+			{
 				free(tab_rp_registers);
 				tab_rp_registers = NULL;
 				return MN_len_erro;
 			}
-			if(poolNums==0){
+			if (poolNums == 0)
+			{
 				free(tab_rp_registers);
 				tab_rp_registers = NULL;
 				return poolNums_erro;
@@ -349,7 +526,7 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 			{
 				goto checkPollutionNums;
 			}
-			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n",(*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
+			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
 		}
 		for (i = 0; i < pollutionNums; i++)
 		{
@@ -363,7 +540,7 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 	tab_rp_registers = NULL;
 	return noResponse;
 checkPollutionNums:
-	printf("checkPollutionNums %d\r\n",(*deviceData)->pollutionNums);
+	printf("checkPollutionNums %d\r\n", (*deviceData)->pollutionNums);
 	if (pollutionNums != (*deviceData)->pollutionNums)
 	{
 		setPollutionNums(*deviceData, pollutionNums);
@@ -372,14 +549,14 @@ checkPollutionNums:
 addNewDate:
 	printf("addNewDate\r\n");
 	addNewDate(*deviceData, tab_rp_registers);
-	
+
 	flashData[0] = '1';
 	flashData[1] = '2';
 	flashData[2] = '3';
-	for ( i = 0; i < nb_points; i++)
+	for (i = 0; i < nb_points; i++)
 	{
-		flashData[i*2+configAddr] = tab_rp_registers[i]>>8;
-		flashData[i*2+configAddr+1] = tab_rp_registers[i]&0xff;
+		flashData[i * 2 + configAddr] = tab_rp_registers[i] >> 8;
+		flashData[i * 2 + configAddr + 1] = tab_rp_registers[i] & 0xff;
 	}
 
 	flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
@@ -389,11 +566,40 @@ addNewDate:
 	return newData;
 }
 
+void addNewCommonDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
+{
+	// uint16_t MN_len = 24;
+	size_t i;
+	deviceData->MN = COMMON_DEVICE_MN;
+	// deviceData->MN_len = MN_len;
+	deviceData->poolNum = poolNum;
+
+	deviceData->year = hexToInt(tab_rp_registers[YearMonthAddr] >> 8);
+	deviceData->month = hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF);
+	deviceData->date = hexToInt(tab_rp_registers[DateHourAddr] >> 8);
+	deviceData->hour = hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF);
+	deviceData->minute = hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8);
+	deviceData->second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
+
+	for (i = 0; i < pollutionNums; i++)
+	{
+		deviceData->pollutions[i].code = COMMON_DEVICE_CODE;
+		// printf("%d",sizeof(pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i])));
+		uint8_t b0 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] >> 8);
+		uint8_t b1 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] & 0x00FF);
+		uint8_t b2 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] >> 8);
+		uint8_t b3 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] & 0x00FF);
+		deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
+		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
+		deviceData->pollutions[i].state = 1;
+	}
+}
+
 void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 {
 	uint16_t MN_len = tab_rp_registers[MN_lenAddr];
 	size_t i;
-	for (i= 0; i < MN_len - 1; i += 2)
+	for (i = 0; i < MN_len - 1; i += 2)
 	{
 		deviceData->MN[i] = (uint8_t)(tab_rp_registers[MNAddr + i / 2] >> 8);
 		deviceData->MN[i + 1] = (uint8_t)(tab_rp_registers[MNAddr + i / 2] & 0x00FF);
@@ -412,11 +618,11 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 	deviceData->hour = hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF);
 	deviceData->minute = hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8);
 	deviceData->second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
-	
+
 	pollutionNums = tab_rp_registers[pollutionNumsAddr];
-	#ifdef UART_SUZHOU
-		uint16_t shiftHistoryAddr = 4*(pollutionNums+remainingPollutionNums)*(deviceData->poolNum-1);
-	#endif
+#ifdef UART_SUZHOU
+	uint16_t shiftHistoryAddr = 4 * (pollutionNums + remainingPollutionNums) * (deviceData->poolNum - 1);
+#endif
 	for (i = 0; i < pollutionNums; i++)
 	{
 		deviceData->pollutions[i].code = pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i]);
@@ -429,14 +635,11 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
 		// printf("deviceData  %f  %f  %f  %f\r\n",bytesToFloat(b0, b1, b2, b3),bytesToFloat(b2, b3, b0, b1),bytesToFloat(b1, b0, b3, b2),bytesToFloat(b3, b2, b1, b0));
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
-		#ifdef UART_SUZHOU
-			flashData[HistroySaveAddr + shiftHistoryAddr + 4 * i] = b0;
-			flashData[HistroySaveAddr + shiftHistoryAddr + 1 + 4 * i] = b1;
-			flashData[HistroySaveAddr + shiftHistoryAddr + 2 + 4 * i] = b2;
-			flashData[HistroySaveAddr + shiftHistoryAddr + 3 + 4 * i] = b3;
-		#endif
+#ifdef UART_SUZHOU
+		flashData[HistroySaveAddr + shiftHistoryAddr + 4 * i] = b0;
+		flashData[HistroySaveAddr + shiftHistoryAddr + 1 + 4 * i] = b1;
+		flashData[HistroySaveAddr + shiftHistoryAddr + 2 + 4 * i] = b2;
+		flashData[HistroySaveAddr + shiftHistoryAddr + 3 + 4 * i] = b3;
+#endif
 	}
-
-
-
 }

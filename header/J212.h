@@ -86,6 +86,8 @@ uint16_t Rec_Timeout(uint8_t Ux);
 uint16_t ErrorTimesMax(uint8_t Ux);
 uint8_t Match_Device_Type(uint8_t Ux);
 uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
+uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
+
 void updateDataTime();
 uint8_t handleUploadInfoRecBuf(uint8_t* rec_buf,uint32_t rec_len);
 void test();
@@ -125,8 +127,13 @@ uint8_t getWithBit(uint8_t index);
 #define init_device_priority           2
 
 #define Semicolon ;
+#define Comma     ,
 #define sample_time_str -SampleTime=
 #define real_time_data_str -Rtd=
+#define minute_data_min_str -Min=
+#define minute_data_max_str -Max=
+#define minute_data_avg_str -Avg=
+#define minute_data_cou_str -Cou=
 #define device_running_start_str -Flag=
 #define device_ExternRunning_start_str -EFlag=
 #define FLT_DECIMAL_DIG 10

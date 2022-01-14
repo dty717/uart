@@ -92,7 +92,7 @@ void core1_entry()
                 printf("chars_rx_index:%d,chars_rx_server_index:%d,chars_rxed:%d\r\n",ctx_rtu->chars_rx_index,ctx_rtu->chars_rx_server_index,ctx_rtu->chars_rxed);
                 break;
             }
-            case 't': {
+            case 'v': {
                 printf("testVal: %d\r\n", testVal);
                 break;
             }
@@ -148,6 +148,10 @@ void core1_entry()
                 break;
             case 'h':
                 printhelp();
+                break;
+            case 'i':
+                mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS+6]+=0x100;
+                printf("init\r\n");
                 break;
             default:
                 printf("\nUnrecognised command: %c\n", c);
@@ -358,7 +362,7 @@ int main()
     ctx = modbus_new_rtu("/dev/ttyUSB1", BAUD_RATE, 'N', 8, 1,uart1,UART1_EN_PIN,0);
     // modbus_rtu_t *ctx_rtu = (modbus_rtu_t *)ctx->backend_data;
     mb_mapping = modbus_mapping_new_start_address(0,MODBUS_MAX_READ_BITS/10, 0,0,
-                                    0,0x100, 0,0);
+                                    0,0xffff, 0,0);
     
     modbus_rtu_t  *ctxServer_rtu = (modbus_rtu_t *)ctxServer->backend_data;
     uint8_t *query;
@@ -403,6 +407,7 @@ int main()
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+YearMonthAddr] = 0x2110;
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+DateHourAddr] = 0x1200;
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+MinuteSecondAddr] = 0x1121;
+
     uint16_t codes[] = {21001, 21011, 1018, 1019};
     float datas[] = {2100.1, 2101.1, 101.8, 101.9};
     for (i = 0; i < mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionNumsAddr]; i++)
@@ -417,6 +422,12 @@ int main()
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionStateAddr + PollutionDataLen * i] = 1;
     }
 
+    mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS] = 0x3F80;
+    mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS + 1] = 0xECCD;
+    mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS + 4] = 0x2112;
+    mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS + 5] = 0x0813;
+    mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS + 6] = 0x0030;
+
     struct repeating_timer timer;
     add_repeating_timer_ms(1000, repeating_timer_callback, NULL, &timer);
 
@@ -428,9 +439,9 @@ int main()
     while (true)
     {
         printf("\r\nuart_test\r\n");
-        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x45,0x03,0x41,0x9A));
-        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x45,0x03,0x51,0x9A));
-        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x45,0x03,0x61,0x9A));
+        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x42,0xCB,0xCC,0xCD));
+        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x42,0xCD,0xCC,0xCD));
+        // printf("bytesToFloat:%f\r\n",bytesToFloat(0x42,0xCF,0xCC,0xCD));
         // sleep_ms(1000);
         // continue;
         gpio_put(LED1,getTimes&1);

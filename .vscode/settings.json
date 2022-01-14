@@ -36,7 +36,8 @@
       "algorithm": "c",
       "j212.h": "c",
       "tusb.h": "c",
-      "board.h": "c"
+      "board.h": "c",
+      "limits": "c"
     },
     "cortex-debug.armToolchainPath": "C:\\PROGRAM FILES (X86)\\GNU ARM EMBEDDED TOOLCHAIN\\9 2020-Q2-UPDATE\\BIN"
 

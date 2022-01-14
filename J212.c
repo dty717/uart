@@ -4,8 +4,19 @@
 #include "header/common/handler.h"
 #include "config.h"
 
-uint8_t  uploadDevice_buf[2048]="QN=20201212080808000;ST=21;CN=2011;PW=123456;MN=010000A8900016F000169DC0;Flag=5;CP=&&&&";
-uint8_t uploadDeviceBuffer[2048];
+#ifdef UART_KUNSHAN
+    uint8_t uploadDevice_buf[2048] = "ST=21;CN=2011;PW=123456;MN=88888880000002001;CP=&&&&";
+    uint8_t uploadDeviceBuffer[2048];
+    uint16_t MN_index = 24;
+#elif defined(UART_JIANGNING)
+    uint8_t uploadDevice_buf[2048] = "ST=21;CN=2011;PW=123456;MN=88888880000002001;Flag=0;CP=&&&&";
+    uint8_t uploadDeviceBuffer[2048];
+    uint16_t MN_index = 24;
+#else
+    uint8_t uploadDevice_buf[2048] = "QN=20201212080808000;ST=21;CN=2011;PW=123456;MN=010000A8900016F000169DC0;Flag=5;CP=&&&&";
+    uint8_t uploadDeviceBuffer[2048];
+    uint16_t MN_index = 48;
+#endif
 
 void assignPW(uint8_t *PW){
     uploadDevice_buf[38]=PW[0];
@@ -19,12 +30,12 @@ uint16_t assignMN(uint8_t *MN,uint16_t MN_len){
     size_t i;
     for (i = 0; i < MN_len; i++)
     {
-        uploadDevice_buf[48+i]=MN[i];
+        uploadDevice_buf[MN_index+i]=MN[i];
     }
     uint8_t next[] = ";Flag=5;CP=&&";
     for (i = 0; i < 13; i++)
     {
-        uploadDevice_buf[48+MN_len+i]=next[i];
+        uploadDevice_buf[MN_index+MN_len+i]=next[i];
     }
     return 61+MN_len;
 }
@@ -38,19 +49,37 @@ uint16_t assignMNWithIndex(uint8_t *MN,uint16_t MN_len,uint16_t index){
     {
         uploadDevice_buf[index+i]=MN[i];
     }
-    uint8_t next[] = ";Flag=5;CP=&&";
-    for (i = 0; i < 13; i++)
+    #ifdef UART_KUNSHAN
+        uint8_t next[] = ";CP=&&";
+        uint16_t len = 6;
+    #elif defined(UART_JIANGNING)
+        uint8_t next[] = ";Flag=0;CP=&&";
+        uint16_t len = 13;
+    #else
+        uint8_t next[] = ";Flag=5;CP=&&";
+        uint16_t len = 13;
+    #endif
+    for (i = 0; i < len; i++)
     {
         uploadDevice_buf[index+MN_len+i]=next[i];
     }
-    return index+13+MN_len;
+    return index+len+MN_len;
 }
 
 uint16_t assignInit(uint8_t *QN, uint8_t *PW, uint8_t *ST, uint8_t *MN,uint16_t MN_len, uint16_t cn)
 {
-    #ifdef UART_SUZHOU 
+    #ifdef UART_SUZHOU
         return assignMNWithIndex(MN,MN_len,0);
-    #endif 
+    #endif
+    #ifdef UART_KUNSHAN
+        return assignMNWithIndex(MN,MN_len,MN_index);
+    #endif
+    #ifdef UART_JIANGNING
+        assignST(ST);
+        assignCN(cn);
+        assignPW(PW);
+        return assignMNWithIndex(MN,MN_len,MN_index);
+    #endif
     assignQN(QN);
     assignPW(PW);
     assignST(ST);
@@ -71,7 +100,11 @@ void assignCN(uint16_t cn){
 
     for (size_t i = 0; i < 4; i++)
     {
-        uploadDevice_buf[30+i]=CP_len[i];
+        #if defined(UART_KUNSHAN) || defined(UART_JIANGNING)
+            uploadDevice_buf[9+i]=CP_len[i];
+        #else
+            uploadDevice_buf[30+i]=CP_len[i];
+        #endif
     }
 }
 
@@ -150,7 +183,7 @@ void assignTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t
 	buf[a++] = (year % 10) + '0';
 	buf[a++] = (month / 10) + '0';
 	buf[a++] = (month % 10) + '0';
- 	buf[a++] = (date / 10) + '0';
+    buf[a++] = (date / 10) + '0';
  	buf[a++] = (date % 10) + '0';
  	buf[a++] = (hour / 10) + '0';
  	buf[a++] = (hour % 10) + '0';
@@ -199,7 +232,19 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
                 appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
                 continue;
             #endif
+            #if defined(UART_KUNSHAN) || defined(UART_JIANGNING)
+                appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(real_time_data_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,3);
+                appendArray(",", uploadDevice_buf, &index);
 
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+                appendChar('N', uploadDevice_buf, &index);
+                continue;
+            #else
+        
             appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
             appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
             appendArray(_STRINGIFY(sample_time_str), uploadDevice_buf, &index);
@@ -214,14 +259,19 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
             appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
             appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
             appendChar('N', uploadDevice_buf, &index);
+            #endif
         }
     }
     endUpload();
     gpio_put(uart_en_pin, 1);
     sleep_ms(20);
-    uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
+    uploadDeviceBuffer[sendBufferIndex] = '\0';
+    uart_puts(uart, uploadDeviceBuffer);
+    // uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
     sleep_ms(5);
+    #ifndef UART_JIANGNING
     gpio_put(uart_en_pin, 0);
+    #endif
     // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
 
     free(QN);
@@ -249,3 +299,244 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
     //     #endif
         return 0;
 }
+
+
+uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin){
+
+        // #if usingSIM
+        //     if(uploadInitState!=1){
+        //         resetWithBit(upload_device_info_priority);
+        //         return uploadInitState;
+        //     }
+        // #endif
+
+    // int needDebug = bits;
+    // if(needDebug!=12){
+    //     resetWithBit(upload_device_info_priority);
+    //     return 1;
+    // }
+    int waitTimes=0;
+
+    uint8_t *QN = assignTimeDecimalMicroSec(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second);
+    
+    uint16_t index = assignInit(QN,deviceData->PW,"21",deviceData->MN,deviceData->MN_len, getMinutesPollutionDataCMD);
+
+    appendArray("DataTime=",uploadDevice_buf,&index);
+	assignTime(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second, uploadDevice_buf,&index);
+    // addDeviceData(U1);
+    // addDeviceData(U2);
+    // addDeviceData(U3);
+    // addDeviceData(U4);
+    // addDeviceData(U5);
+    
+    for (size_t i = 0; i < deviceData->pollutionNums+remainingPollutionNums; i++)
+    {
+        if(deviceData->pollutions[i].state){
+            #ifdef UART_SUZHOU
+                appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(real_time_data_str), uploadDevice_buf, &index);
+                appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
+                continue;
+            #endif
+            #if defined(UART_KUNSHAN) || defined(UART_JIANGNING)
+
+                appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_min_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_avg_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_max_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_cou_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+                appendChar('N', uploadDevice_buf, &index);
+                continue;
+            #else
+        
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(sample_time_str), uploadDevice_buf, &index);
+            assignTime(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second, uploadDevice_buf,&index);
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(real_time_data_str), uploadDevice_buf, &index);
+            appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+            appendChar('N', uploadDevice_buf, &index);
+            #endif
+        }
+    }
+    endUpload();
+    gpio_put(uart_en_pin, 1);
+    sleep_ms(20);
+    uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
+    printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
+    sleep_ms(5);
+    #ifndef UART_JIANGNING
+    gpio_put(uart_en_pin, 0);
+    #endif
+    // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
+
+    free(QN);
+    QN = NULL;
+    // Enable_Ux(U6,_send);
+    // if(usingSIM){
+    //     if(!SIM_send(sendBufferIndex)){
+    //         goto errorSend; 
+    //     }
+    // }else{
+    //     HAL_UART_Transmit(&huart6, uploadDeviceBuffer,sendBufferIndex,2000);
+    // }
+    // osDelay(10);
+    // Enable_Ux(U6,_rec);
+    
+	// resetWithBit(upload_device_info_priority);
+    // return 1;
+    // errorSend:
+    //     #if usingSIM
+    //         uploadInitState = 0;
+    //     #endif
+    //     resetWithBit(upload_device_info_priority);
+    //     #if usingSIM
+    //         return uploadInitState;
+    //     #endif
+        return 0;
+}
+
+
+
+
+uint8_t uploadHeartBeat(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin){
+
+        // #if usingSIM
+        //     if(uploadInitState!=1){
+        //         resetWithBit(upload_device_info_priority);
+        //         return uploadInitState;
+        //     }
+        // #endif
+
+    // int needDebug = bits;
+    // if(needDebug!=12){
+    //     resetWithBit(upload_device_info_priority);
+    //     return 1;
+    // }
+    int waitTimes=0;
+
+    uint8_t *QN = assignTimeDecimalMicroSec(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second);
+    
+    uint16_t index = assignInit(QN,deviceData->PW,"21",deviceData->MN,deviceData->MN_len, getMinutesPollutionDataCMD);
+
+    appendArray("DataTime=",uploadDevice_buf,&index);
+	assignTime(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second, uploadDevice_buf,&index);
+    // addDeviceData(U1);
+    // addDeviceData(U2);
+    // addDeviceData(U3);
+    // addDeviceData(U4);
+    // addDeviceData(U5);
+    
+    for (size_t i = 0; i < deviceData->pollutionNums+remainingPollutionNums; i++)
+    {
+        if(deviceData->pollutions[i].state){
+            #ifdef UART_SUZHOU
+                appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(real_time_data_str), uploadDevice_buf, &index);
+                appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
+                continue;
+            #endif
+            #if defined(UART_KUNSHAN) || defined(UART_JIANGNING)
+
+                appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_min_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_avg_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_max_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(minute_data_cou_str), uploadDevice_buf, &index);
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index,2);
+                appendArray(",", uploadDevice_buf, &index);
+                appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+                appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+                appendChar('N', uploadDevice_buf, &index);
+                continue;
+            #else
+        
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(sample_time_str), uploadDevice_buf, &index);
+            assignTime(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second, uploadDevice_buf,&index);
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(real_time_data_str), uploadDevice_buf, &index);
+            appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+            appendChar('N', uploadDevice_buf, &index);
+            #endif
+        }
+    }
+    endUpload();
+    gpio_put(uart_en_pin, 1);
+    sleep_ms(20);
+    uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
+    printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
+    sleep_ms(5);
+    #ifndef UART_JIANGNING
+    gpio_put(uart_en_pin, 0);
+    #endif
+    // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
+
+    free(QN);
+    QN = NULL;
+    // Enable_Ux(U6,_send);
+    // if(usingSIM){
+    //     if(!SIM_send(sendBufferIndex)){
+    //         goto errorSend; 
+    //     }
+    // }else{
+    //     HAL_UART_Transmit(&huart6, uploadDeviceBuffer,sendBufferIndex,2000);
+    // }
+    // osDelay(10);
+    // Enable_Ux(U6,_rec);
+    
+	// resetWithBit(upload_device_info_priority);
+    // return 1;
+    // errorSend:
+    //     #if usingSIM
+    //         uploadInitState = 0;
+    //     #endif
+    //     resetWithBit(upload_device_info_priority);
+    //     #if usingSIM
+    //         return uploadInitState;
+    //     #endif
+        return 0;
+}
+
+
+

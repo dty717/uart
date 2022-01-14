@@ -27,7 +27,9 @@
 #include "header/gps.h"
 #include "header/common/handler.h"
 
-#ifdef UART_KUNSHAN
+#ifdef UART_JIANGNING
+
+
 
 /// \tag::multicore_dispatch[]
 
@@ -70,20 +72,21 @@ void core1_entry()
             for (i = 0; i < 3; i++)
             {
                 uploadDevice(deviceData, uart0, UART0_EN_PIN);
-                // printf("update server\r\n");
-                sleep_ms(1000 * 10);
-                if (!needUpdateServer)
-                {
-                    break;
-                }
-                sleep_ms(2000 * 10);
-                if (!needUpdateServer)
-                {
-                    break;
-                }
+                sleep_ms(1000 * 5);
+                uploadDeviceMinutes(deviceData, uart0, UART0_EN_PIN);
+                printf("update server\r\n");
+                sleep_ms(1000 * 60 * 5);
+                // if (!needUpdateServer)
+                // {
+                //     break;
+                // }
+                // sleep_ms(1000 * 20);
+                // if (!needUpdateServer)
+                // {
+                //     break;
+                // }
             }
             needUpdateServer = 0;
-
         }
         // int32_t (*func)() = (int32_t(*)())multicore_fifo_pop_blocking();	
         // int32_t p = multicore_fifo_pop_blocking();	
@@ -228,7 +231,7 @@ int main()
         return -1;
     }
     mb_mapping->tab_bits[0]=2;
-    modbus_set_debug(ctx, FALSE);
+    // modbus_set_debug(ctx, TRUE);
     modbus_connect(ctx);
     modbus_set_slave(ctx, 1);
 
@@ -245,7 +248,8 @@ int main()
     }
     uint16_t *tab_rp_registers = NULL;
 
-    if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'){
+    if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'&&0){
+        
         tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
         for (i = 0; i < nb_points; i++)
         {
@@ -283,21 +287,23 @@ int main()
     
     uint8_t times = 0;
     uint8_t currentPool = 0;
+    // wait for dtu init
+    sleep_ms(1000 * 60 * 1);
 
     while (true)
     {
-        printf("uart_kunshan\r\n");
+        printf("uart_jiangning\r\n");
         if(deviceData!=NULL&&ctx->debug)
             printf("out %d %d %d\r\n", deviceData->poolNums, deviceData->pollutionNums, deviceData->MN_len);
         
-        response_type_t needUpdate = ask_all_devices(ctx,&deviceData);
-
+        response_type_t needUpdate = ask_common_device(ctx,&deviceData);
 
         switch (needUpdate)
         {
         case noResponse:
             break;
         case normal:
+            needUpdateServer = 1;
             break;
         case newData:
             // set_led_value(ctx, deviceData);
@@ -307,7 +313,7 @@ int main()
             // deviceData->pollutions[deviceData->pollutionNums].code = "w01001";
             // deviceData->pollutions[deviceData->pollutionNums].data = data[0];
             // deviceData->pollutions[deviceData->pollutionNums].state = 1;
-            
+
             // deviceData->pollutions[deviceData->pollutionNums + 1].code = "w01012";
             // deviceData->pollutions[deviceData->pollutionNums].data = data[1];
             // deviceData->pollutions[deviceData->pollutionNums].state = 1;

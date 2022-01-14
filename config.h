@@ -44,15 +44,28 @@
 
 // #define UART
                             #ifndef UART
-#define UART_TEST
+// #define UART_TEST
                             #ifndef UART_TEST
-// #define UART_KUNSHAN
+#define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
-#define UART_SUZHOU
+// #define UART_SUZHOU
                             #ifndef UART_SUZHOU
-#define UART_CLO3
+// #define UART_CLO3
+                            #ifndef UART_CLO3
+#define UART_JIANGNING
                             #endif
                             #endif
                             #endif
                             #endif
                             #endif
+                            #endif
+
+
+
+
+
+#ifdef UART_SUZHOU
+    #define remainingPollutionNums 2
+#else
+    #define remainingPollutionNums 0
+#endif

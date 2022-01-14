@@ -20,6 +20,7 @@ extern "C"
     void _append(uint8_t *target, uint16_t targetSize, uint8_t *origin, uint16_t *index);
     void appendChar(uint8_t target, uint8_t *origin, uint16_t *index);
     void appendFloatToStr(float num, uint8_t *target, uint16_t *index);
+    void appendFloatToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16_t len);
     void appendNumberToStr(int32_t num, uint8_t *target, uint16_t *index);
     uint32_t strToNum(uint8_t *target, uint16_t start, uint16_t end);
     void lenStr(int len, int data, uint8_t *str);
