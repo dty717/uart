@@ -9,9 +9,9 @@
 #include <string.h>
 
 #ifndef Debug_messageReceive
-    #define Debug_messageReceive
+#define Debug_messageReceive
 #endif
-# define MODBUS_API
+#define MODBUS_API
 
 #ifndef FALSE
 #define FALSE 0
@@ -44,43 +44,40 @@
 
 #define MAX_MESSAGE_LENGTH 260
 
-
-typedef enum {
-    _MODBUS_BACKEND_TYPE_RTU=0,
+typedef enum
+{
+    _MODBUS_BACKEND_TYPE_RTU = 0,
     _MODBUS_BACKEND_TYPE_TCP
 } modbus_backend_type_t;
 
-
-
 /* Modbus function codes */
-#define MODBUS_FC_READ_COILS                0x01
-#define MODBUS_FC_READ_DISCRETE_INPUTS      0x02
-#define MODBUS_FC_READ_HOLDING_REGISTERS    0x03
-#define MODBUS_FC_READ_INPUT_REGISTERS      0x04
-#define MODBUS_FC_WRITE_SINGLE_COIL         0x05
-#define MODBUS_FC_WRITE_SINGLE_REGISTER     0x06
-#define MODBUS_FC_READ_EXCEPTION_STATUS     0x07
-#define MODBUS_FC_WRITE_MULTIPLE_COILS      0x0F
-#define MODBUS_FC_WRITE_MULTIPLE_REGISTERS  0x10
-#define MODBUS_FC_REPORT_SLAVE_ID           0x11
-#define MODBUS_FC_MASK_WRITE_REGISTER       0x16
-#define MODBUS_FC_WRITE_AND_READ_REGISTERS  0x17
+#define MODBUS_FC_READ_COILS 0x01
+#define MODBUS_FC_READ_DISCRETE_INPUTS 0x02
+#define MODBUS_FC_READ_HOLDING_REGISTERS 0x03
+#define MODBUS_FC_READ_INPUT_REGISTERS 0x04
+#define MODBUS_FC_WRITE_SINGLE_COIL 0x05
+#define MODBUS_FC_WRITE_SINGLE_REGISTER 0x06
+#define MODBUS_FC_READ_EXCEPTION_STATUS 0x07
+#define MODBUS_FC_WRITE_MULTIPLE_COILS 0x0F
+#define MODBUS_FC_WRITE_MULTIPLE_REGISTERS 0x10
+#define MODBUS_FC_REPORT_SLAVE_ID 0x11
+#define MODBUS_FC_MASK_WRITE_REGISTER 0x16
+#define MODBUS_FC_WRITE_AND_READ_REGISTERS 0x17
 
 /* Timeouts in microsecond (0.5 s) */
-#define _RESPONSE_TIMEOUT    500000
-#define _BYTE_TIMEOUT        500000
-
+#define _RESPONSE_TIMEOUT 500000
+#define _BYTE_TIMEOUT 500000
 
 // #define MODBUS_BROADCAST_ADDRESS    0
-#define MODBUS_BROADCAST_ADDRESS    -1//not use
+#define MODBUS_BROADCAST_ADDRESS -1 // not use
 
 /* Modbus_Application_Protocol_V1_1b.pdf (chapter 6 section 1 page 12)
  * Quantity of Coils to read (2 bytes): 1 to 2000 (0x7D0)
  * (chapter 6 section 11 page 29)
  * Quantity of Coils to write (2 bytes): 1 to 1968 (0x7B0)
  */
-#define MODBUS_MAX_READ_BITS              2000
-#define MODBUS_MAX_WRITE_BITS             1968
+#define MODBUS_MAX_READ_BITS 2000
+#define MODBUS_MAX_WRITE_BITS 1968
 
 /* Modbus_Application_Protocol_V1_1b.pdf (chapter 6 section 3 page 15)
  * Quantity of Registers to read (2 bytes): 1 to 125 (0x7D)
@@ -89,17 +86,17 @@ typedef enum {
  * (chapter 6 section 17 page 38)
  * Quantity of Registers to write in R/W registers (2 bytes) 1 to 121 (0x79)
  */
-#define MODBUS_MAX_READ_REGISTERS          125
-#define MODBUS_MAX_WRITE_REGISTERS         123
-#define MODBUS_MAX_WR_WRITE_REGISTERS      121
-#define MODBUS_MAX_WR_READ_REGISTERS       125
+#define MODBUS_MAX_READ_REGISTERS 125
+#define MODBUS_MAX_WRITE_REGISTERS 123
+#define MODBUS_MAX_WR_WRITE_REGISTERS 121
+#define MODBUS_MAX_WR_READ_REGISTERS 125
 
 /* The size of the MODBUS PDU is limited by the size constraint inherited from
  * the first MODBUS implementation on Serial Line network (max. RS485 ADU = 256
  * bytes). Therefore, MODBUS PDU for serial line communication = 256 - Server
  * address (1 byte) - CRC (2 bytes) = 253 bytes.
  */
-#define MODBUS_MAX_PDU_LENGTH              253
+#define MODBUS_MAX_PDU_LENGTH 253
 
 /* Consequently:
  * - RTU MODBUS ADU = 253 bytes + Server address (1 byte) + CRC (2 bytes) = 256
@@ -109,7 +106,7 @@ typedef enum {
  * an array of bytes to store responses and it will be compatible with the two
  * backends.
  */
-#define MODBUS_MAX_ADU_LENGTH              260
+#define MODBUS_MAX_ADU_LENGTH 260
 
 #define MSG_LENGTH_UNDEFINED -1
 
@@ -117,7 +114,8 @@ typedef enum {
 #define MODBUS_ENOBASE 112345678
 
 /* Protocol exceptions */
-enum {
+enum
+{
     MODBUS_EXCEPTION_ILLEGAL_FUNCTION = 0x01,
     MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS,
     MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE,
@@ -132,40 +130,40 @@ enum {
     MODBUS_EXCEPTION_MAX
 };
 
-
-#define EMBXILFUN  (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_FUNCTION)
-#define EMBXILADD  (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS)
-#define EMBXILVAL  (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE)
-#define EMBXSFAIL  (MODBUS_ENOBASE + MODBUS_EXCEPTION_SLAVE_OR_SERVER_FAILURE)
-#define EMBXACK    (MODBUS_ENOBASE + MODBUS_EXCEPTION_ACKNOWLEDGE)
-#define EMBXSBUSY  (MODBUS_ENOBASE + MODBUS_EXCEPTION_SLAVE_OR_SERVER_BUSY)
-#define EMBXNACK   (MODBUS_ENOBASE + MODBUS_EXCEPTION_NEGATIVE_ACKNOWLEDGE)
+#define EMBXILFUN (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_FUNCTION)
+#define EMBXILADD (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS)
+#define EMBXILVAL (MODBUS_ENOBASE + MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE)
+#define EMBXSFAIL (MODBUS_ENOBASE + MODBUS_EXCEPTION_SLAVE_OR_SERVER_FAILURE)
+#define EMBXACK (MODBUS_ENOBASE + MODBUS_EXCEPTION_ACKNOWLEDGE)
+#define EMBXSBUSY (MODBUS_ENOBASE + MODBUS_EXCEPTION_SLAVE_OR_SERVER_BUSY)
+#define EMBXNACK (MODBUS_ENOBASE + MODBUS_EXCEPTION_NEGATIVE_ACKNOWLEDGE)
 #define EMBXMEMPAR (MODBUS_ENOBASE + MODBUS_EXCEPTION_MEMORY_PARITY)
-#define EMBXGPATH  (MODBUS_ENOBASE + MODBUS_EXCEPTION_GATEWAY_PATH)
-#define EMBXGTAR   (MODBUS_ENOBASE + MODBUS_EXCEPTION_GATEWAY_TARGET)
+#define EMBXGPATH (MODBUS_ENOBASE + MODBUS_EXCEPTION_GATEWAY_PATH)
+#define EMBXGTAR (MODBUS_ENOBASE + MODBUS_EXCEPTION_GATEWAY_TARGET)
 
 /* Native libmodbus error codes */
-#define EMBBADCRC  (EMBXGTAR + 1)
+#define EMBBADCRC (EMBXGTAR + 1)
 #define EMBBADDATA (EMBXGTAR + 2)
-#define EMBBADEXC  (EMBXGTAR + 3)
-#define EMBUNKEXC  (EMBXGTAR + 4)
-#define EMBMDATA   (EMBXGTAR + 5)
+#define EMBBADEXC (EMBXGTAR + 3)
+#define EMBUNKEXC (EMBXGTAR + 4)
+#define EMBMDATA (EMBXGTAR + 5)
 #define EMBBADSLAVE (EMBXGTAR + 6)
 
 extern const unsigned int libmodbus_version_major;
 extern const unsigned int libmodbus_version_minor;
 extern const unsigned int libmodbus_version_micro;
 
-
-typedef enum {
+typedef enum
+{
     /* Request message on the server side */
     MSG_INDICATION,
     /* Request message on the client side */
     MSG_CONFIRMATION
 } msg_type_t;
-#define _MSG_INDICATION   0
+#define _MSG_INDICATION 0
 #define _MSG_CONFIRMATION 1
-typedef enum {
+typedef enum
+{
     _STEP_FUNCTION,
     _STEP_META,
     _STEP_DATA
@@ -174,21 +172,24 @@ typedef enum {
 #define LIBMODBUS_VERSION_STRING "@LIBMODBUS_VERSION@"
 
 #define MODBUS_GET_INT16_FROM_INT8(tab_int8, index) \
-    (((int16_t)tab_int8[(index)    ] << 8) | \
-      (int16_t)tab_int8[(index) + 1])
-#define MODBUS_SET_INT16_TO_INT8(tab_int8, index, value) \
-    do { \
-        ((int8_t*)(tab_int8))[(index)    ] = (int8_t)((value) >> 8);  \
-        ((int8_t*)(tab_int8))[(index) + 1] = (int8_t)(value); \
+    (((int16_t)tab_int8[(index)] << 8) |            \
+     (int16_t)tab_int8[(index) + 1])
+#define MODBUS_SET_INT16_TO_INT8(tab_int8, index, value)          \
+    do                                                            \
+    {                                                             \
+        ((int8_t *)(tab_int8))[(index)] = (int8_t)((value) >> 8); \
+        ((int8_t *)(tab_int8))[(index) + 1] = (int8_t)(value);    \
     } while (0)
 
-typedef struct _sft {
+typedef struct _sft
+{
     int slave;
     int function;
     int t_id;
 } sft_t;
 
-typedef struct _modbus_mapping_t {
+typedef struct _modbus_mapping_t
+{
     int nb_bits;
     int start_bits;
     int nb_input_bits;
@@ -205,41 +206,44 @@ typedef struct _modbus_mapping_t {
 
 typedef enum
 {
-    MODBUS_ERROR_RECOVERY_NONE          = 0,
-    MODBUS_ERROR_RECOVERY_LINK          = (1<<1),
-    MODBUS_ERROR_RECOVERY_PROTOCOL      = (1<<2)
+    MODBUS_ERROR_RECOVERY_NONE = 0,
+    MODBUS_ERROR_RECOVERY_LINK = (1 << 1),
+    MODBUS_ERROR_RECOVERY_PROTOCOL = (1 << 2)
 } modbus_error_recovery_mode;
 
 typedef struct _modbus modbus_t;
 
-typedef struct _modbus_backend {
+typedef struct _modbus_backend
+{
     unsigned int backend_type;
     unsigned int header_length;
     unsigned int checksum_length;
     unsigned int max_adu_length;
-    int (*set_slave) (modbus_t *ctx, int slave);
-    int (*build_request_basis) (modbus_t *ctx, int function, int addr,
-                                int nb, uint8_t *req);
-    int (*build_response_basis) (sft_t *sft, uint8_t *rsp);
-    int (*prepare_response_tid) (const uint8_t *req, int *req_length);
-    int (*send_msg_pre) (uint8_t *req, int req_length);
-    ssize_t (*send) (modbus_t *ctx, const uint8_t *req, int req_length);
-    int (*receive) (modbus_t *ctx, uint8_t *req);
-    ssize_t (*recv) (modbus_t *ctx, uint8_t *rsp, int rsp_length);
-    int (*check_integrity) (modbus_t *ctx, uint8_t *msg,
-                            const int msg_length);
-    int (*pre_check_confirmation) (modbus_t *ctx, const uint8_t *req,
-                                   const uint8_t *rsp, int rsp_length);
-    int (*connect) (modbus_t *ctx);
-    void (*close) (modbus_t *ctx);
-    int (*flush) (modbus_t *ctx);
-    int (*select) (modbus_t *ctx, fd_set *rset, struct timeval *tv, int msg_length);
-    void (*free) (modbus_t *ctx);
+    int (*set_slave)(modbus_t *ctx, int slave);
+    int (*build_request_basis)(modbus_t *ctx, int function, int addr,
+                               int nb, uint8_t *req);
+    int (*build_response_basis)(sft_t *sft, uint8_t *rsp);
+    int (*prepare_response_tid)(const uint8_t *req, int *req_length);
+    int (*send_msg_pre)(uint8_t *req, int req_length);
+    ssize_t (*send)(modbus_t *ctx, const uint8_t *req, int req_length);
+    int (*receive)(modbus_t *ctx, uint8_t *req);
+    ssize_t (*recv)(modbus_t *ctx, uint8_t *rsp, int rsp_length);
+    ssize_t (*reRecv)(modbus_t *ctx, uint8_t *rsp, int rsp_length, int rsp_shift);
+    int (*check_integrity)(modbus_t *ctx, uint8_t *msg,
+                           const int msg_length);
+    int (*pre_check_confirmation)(modbus_t *ctx, const uint8_t *req,
+                                  const uint8_t *rsp, int rsp_length);
+    int (*connect)(modbus_t *ctx);
+    void (*close)(modbus_t *ctx);
+    int (*flush)(modbus_t *ctx);
+    int (*select)(modbus_t *ctx, fd_set *rset, struct timeval *tv, int msg_length);
+    void (*free)(modbus_t *ctx);
     int (*add_RXData)(modbus_t *ctx, uint8_t ch);
     int (*header)(modbus_t *ctx, uint8_t *msg);
 } modbus_backend_t;
 
-struct _modbus {
+struct _modbus
+{
     /* Slave address */
     int slave;
     /* Socket or file descriptor */
@@ -280,15 +284,15 @@ MODBUS_API int modbus_reply_exception(modbus_t *ctx, const uint8_t *req,
 MODBUS_API int modbus_send_raw_request(modbus_t *ctx, const uint8_t *raw_req, int raw_req_length);
 MODBUS_API int modbus_get_socket(modbus_t *ctx);
 MODBUS_API void modbus_set_bits_from_bytes(uint8_t *dest, int idx, unsigned int nb_bits,
-                                       const uint8_t *tab_byte);
+                                           const uint8_t *tab_byte);
 
-MODBUS_API modbus_mapping_t* modbus_mapping_new_start_address(
+MODBUS_API modbus_mapping_t *modbus_mapping_new_start_address(
     unsigned int start_bits, unsigned int nb_bits,
     unsigned int start_input_bits, unsigned int nb_input_bits,
     unsigned int start_registers, unsigned int nb_registers,
     unsigned int start_input_registers, unsigned int nb_input_registers);
 
-MODBUS_API modbus_mapping_t* modbus_mapping_new(int nb_bits, int nb_input_bits,
+MODBUS_API modbus_mapping_t *modbus_mapping_new(int nb_bits, int nb_input_bits,
                                                 int nb_registers, int nb_input_registers);
 MODBUS_API int modbus_flush(modbus_t *ctx);
 

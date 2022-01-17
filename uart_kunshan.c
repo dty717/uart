@@ -98,10 +98,11 @@ void on_uart0_rx() {
     while (uart_is_readable(uart0)) {
         uint8_t ch = uart_getc(uart0);
         // Can we send it back?
-        // printf("(%.2X)", ch);
+        printf("(%.2X)", ch);
         // modbus_add_RXData(ctx,ch);
         if(ch=='1'){
             needUpdateServer = 0;
+            printf("hasUpdateServer\r\n");
         }
         if (uart_is_writable(uart0)) {
             // Change it slightly first!
@@ -142,8 +143,8 @@ int main()
     gpio_init(uart1_EN);
     gpio_set_dir(uart0_EN, GPIO_OUT);
     gpio_set_dir(uart1_EN, GPIO_OUT);
-    gpio_put(uart0_EN, 1);
-    gpio_put(uart1_EN, 1);
+    gpio_put(uart0_EN, 0);
+    gpio_put(uart1_EN, 0);
 
     uart_init(uart0, BAUD_RATE2);
     uart_init(uart1, BAUD_RATE);
@@ -319,7 +320,7 @@ int main()
             break;
         }
         // printf("Raw value: 0x%03x, voltage: %f V\n", result, adc_PH * conversion_factor);
-        sleep_ms(1000);
+        sleep_ms(3000);
         val = !val;
         gpio_put(LED_PIN, val);
     }

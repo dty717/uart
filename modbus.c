@@ -305,7 +305,6 @@ static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
        successful! Disabled by default. */
     do {
         rc = ctx->backend->send(ctx, msg, msg_length);
-        modbus_flush(ctx);
         if (rc == -1) {
             _error_print(ctx, NULL);
             if (ctx->error_recovery & MODBUS_ERROR_RECOVERY_LINK) {
@@ -1296,6 +1295,7 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
      * information. */
     step = _STEP_FUNCTION;
     length_to_read = ctx->backend->header_length + 1;
+    int headerCheckTimes = 3;
 
     if (msg_type == MSG_INDICATION) {
         /* Wait for a message, we don't know when the message will be
@@ -1334,7 +1334,7 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
         }
         
         rc = ctx->backend->recv(ctx, msg + msg_length, length_to_read);
-        
+        header:
         if (rc == 0) {
             errno = ECONNRESET;
             rc = -1;
@@ -1374,6 +1374,13 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
             switch (step) {
             case _STEP_FUNCTION:
                 if(ctx->slave!=modbus_header(ctx,msg)){
+                    if(headerCheckTimes-->0){
+                        printf("go to header\r\n");
+                        msg_length = 0;
+                        length_to_read = ctx->backend->header_length + 1;
+                        rc = ctx->backend->reRecv(ctx, msg , length_to_read, 1);
+                        goto header;
+                    }
                     return -1;
                 }
                 /* Function code position */

@@ -32,6 +32,15 @@ static int _rtu_modbus_build_request_basis(modbus_t *ctx, int function,
     return _rtu_modbus_PRESET_REQ_LENGTH;
 }
 
+static int _rtu_modbus_flush(modbus_t *ctx){
+    modbus_rtu_t *ctx_rtu = ctx->backend_data;
+    ctx_rtu->chars_rxed = 0;
+    ctx_rtu->chars_rx_index = 0;
+    ctx_rtu->chars_rx_server_index = 0;
+    return 1;
+}
+
+
 /* Builds a RTU response header */
 static int _rtu_modbus_build_response_basis(sft_t *sft, uint8_t *rsp)
 {
@@ -64,6 +73,7 @@ static ssize_t _rtu_modbus_send(modbus_t *ctx, const uint8_t *req, int req_lengt
 {
     modbus_rtu_t *ctx_rtu = ctx->backend_data;
     gpio_put(ctx_rtu->uart_en_pin, 1);
+    _rtu_modbus_flush(ctx);
     sleep_ms(20);
     if (uart_is_writable(ctx_rtu->uart))
     {
@@ -95,11 +105,9 @@ static int _rtu_modbus_receive(modbus_t *ctx, uint8_t *req)
             printf("Confirmation to ignore\n");
         }
     } else {
-
         rc = _modbus_receive_msg(ctx, req, MSG_INDICATION);
         if (rc == 0&&ctx->debug) {
             printf("MSG_INDICATION\r\n");
-
             /* The next expected message is a confirmation to ignore */
             ctx_rtu->confirmation_to_ignore = TRUE;
         }
@@ -151,8 +159,6 @@ static ssize_t _rtu_modbus_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
             }
         }
     }
-    // printf("\r\nchars_rxed:%d,chars_rx_server_index:%d,chars_rx_index:%d,rsp_length:%d,confirmation_to_ignore:%d\r\n", ctx_rtu->chars_rxed,ctx_rtu->chars_rx_server_index, ctx_rtu->chars_rx_index,rsp_length,ctx_rtu->confirmation_to_ignore);
-
     for (size_t i = 0; i < rsp_length; i++)
     {
         rsp[i] = ctx_rtu->ch[i+ctx_rtu->chars_rx_index];
@@ -162,12 +168,17 @@ static ssize_t _rtu_modbus_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
     return rsp_length;//read(ctx->s, rsp, rsp_length);
 }
 
-static int _rtu_modbus_flush(modbus_t *ctx){
+static ssize_t _rtu_modbus_reRecv(modbus_t *ctx, uint8_t *rsp, int rsp_length, int rsp_shift)
+{
     modbus_rtu_t *ctx_rtu = ctx->backend_data;
-    ctx_rtu->chars_rxed = 0;
-    ctx_rtu->chars_rx_index = 0;
-    ctx_rtu->chars_rx_server_index = 0;
-    return 1;
+
+    for (size_t i = 0; i < rsp_length; i++)
+    {
+        rsp[i] = ctx_rtu->ch[i + ctx_rtu->chars_rx_index - rsp_shift];
+    }
+    // ctx_rtu->chars_rxed = 0;
+    ctx_rtu->chars_rx_index += rsp_length - rsp_shift;
+    return rsp_length; // read(ctx->s, rsp, rsp_length);
 }
 
 static int _rtu_modbus_pre_check_confirmation(modbus_t *ctx, const uint8_t *req,
@@ -327,6 +338,7 @@ const modbus_backend_t _rtu_modbus_backend = {
     _rtu_modbus_send,
     _rtu_modbus_receive,
     _rtu_modbus_recv,
+    _rtu_modbus_reRecv,
     _rtu_modbus_check_integrity,
     _rtu_modbus_pre_check_confirmation,
     _rtu_modbus_connect,
