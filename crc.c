@@ -1,24 +1,24 @@
 #include "header/crc.h"
 
-// unsigned int crc16(uint8_t *puchMsg, uint16_t start, uint16_t len)
-// {
-//     unsigned int i, j, crc_reg, check;
-//     crc_reg = 0xFFFF;
-//     for (i = 0; i < len; i++)
-//     {
-//         crc_reg = (crc_reg >> 8) ^ puchMsg[start + i];
-//         for (j = 0; j < 8; j++)
-//         {
-//             check = crc_reg & 0x0001;
-//             crc_reg >>= 1;
-//             if (check == 0x0001)
-//             {
-//                 crc_reg ^= 0xA001;
-//             }
-//         }
-//     }
-//     return crc_reg;
-// }
+unsigned int crc16_J212(uint8_t *puchMsg, uint16_t start, uint16_t len)
+{
+    unsigned int i, j, crc_reg, check;
+    crc_reg = 0xFFFF;
+    for (i = 0; i < len; i++)
+    {
+        crc_reg = (crc_reg >> 8) ^ puchMsg[start + i];
+        for (j = 0; j < 8; j++)
+        {
+            check = crc_reg & 0x0001;
+            crc_reg >>= 1;
+            if (check == 0x0001)
+            {
+                crc_reg ^= 0xA001;
+            }
+        }
+    }
+    return crc_reg;
+}
 
 
 /* Table of CRC values for high-order byte */

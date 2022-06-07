@@ -18,6 +18,8 @@
     uint16_t MN_index = 48;
 #endif
 
+uint8_t hourDataValue[32];
+
 void assignPW(uint8_t *PW){
     uploadDevice_buf[38]=PW[0];
     uploadDevice_buf[39]=PW[1];
@@ -117,7 +119,7 @@ void assignST(uint8_t *ST){
 #define endUpload() appendArray("&&",uploadDevice_buf,&index);\
 	char CP_len[5];\
 	lenStr(4, index, CP_len);\
-    unsigned int crctemp = crc16(uploadDevice_buf, 0, index);\
+    unsigned int crctemp = crc16_J212(uploadDevice_buf, 0, index);\
 	char crcOut[5];\
 	intToHexStr(crctemp, crcOut);\
     uint16_t sendBufferIndex=0;\
@@ -253,7 +255,35 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
 
             appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
             appendArray(_STRINGIFY(real_time_data_str), uploadDevice_buf, &index);
-            appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
+            #ifdef UART_HUBEI
+                if (deviceData->pollutions[i].code == "w01001")
+                {
+                    deviceData->pollutions[i].data = (int)(deviceData->pollutions[i].data + 0.5/1) + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index, 0);
+                }
+                else if (deviceData->pollutions[i].code == "w21003")
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index, 2);
+                }
+                else if (deviceData->pollutions[i].code == "w21011")
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/1000) * 1000) / 1000.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index, 3);
+                }
+                else if (deviceData->pollutions[i].code == "w01003")
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index, 2);
+                }
+                else
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/10) * 10) / 10.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, uploadDevice_buf, &index, 1);
+                }
+            #else
+                appendFloatToStr(deviceData->pollutions[i].data, uploadDevice_buf, &index);
+            #endif
             appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
 
             appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
@@ -419,6 +449,130 @@ uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t u
 }
 
 
+uint8_t uploadDeviceHours(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin){
+
+        // #if usingSIM
+        //     if(uploadInitState!=1){
+        //         resetWithBit(upload_device_info_priority);
+        //         return uploadInitState;
+        //     }
+        // #endif
+
+    // int needDebug = bits;
+    // if(needDebug!=12){
+    //     resetWithBit(upload_device_info_priority);
+    //     return 1;
+    // }
+    int waitTimes=0;
+
+    uint8_t *QN = assignTimeDecimalMicroSec(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second);
+    
+    uint16_t index = assignInit(QN,deviceData->PW,"21",deviceData->MN,deviceData->MN_len, getHoursPollutionDataCMD);
+
+    appendArray("DataTime=",uploadDevice_buf,&index);
+	assignTime(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second, uploadDevice_buf,&index);
+    // addDeviceData(U1);
+    // addDeviceData(U2);
+    // addDeviceData(U3);
+    // addDeviceData(U4);
+    // addDeviceData(U5);
+
+    uint16_t dataIndex = 0;
+
+    for (size_t i = 0; i < deviceData->pollutionNums + remainingPollutionNums; i++)
+    {
+        if (deviceData->pollutions[i].state)
+        {
+            dataIndex = 0;
+            #ifdef UART_HUBEI
+                if (deviceData->pollutions[i].code == "w01001")
+                {
+                    deviceData->pollutions[i].data = (int)(deviceData->pollutions[i].data + 0.5/1) + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 0);
+                }
+                else if (deviceData->pollutions[i].code == "w21003")
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 2);
+                }
+                else if (deviceData->pollutions[i].code == "w21011")
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/1000) * 1000) / 1000.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 3);
+                }
+                else if (deviceData->pollutions[i].code == "w01003")
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 2);
+                }
+                else
+                {
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/10) * 10) / 10.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 1);
+                }
+            #else
+                appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 2);
+            #endif
+            hourDataValue[dataIndex] = '\0';
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_min_str), uploadDevice_buf, &index);
+            appendArray(hourDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_avg_str), uploadDevice_buf, &index);
+            appendArray(hourDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_max_str), uploadDevice_buf, &index);
+            appendArray(hourDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_cou_str), uploadDevice_buf, &index);
+            appendArray(hourDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+            appendChar('N', uploadDevice_buf, &index);
+        }
+    }
+    endUpload();
+    gpio_put(uart_en_pin, 1);
+    sleep_ms(20);
+    uploadDeviceBuffer[sendBufferIndex] = '\0';
+    uart_puts(uart, uploadDeviceBuffer);
+    // uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
+    sleep_ms(5);
+    #ifndef UART_JIANGNING
+    gpio_put(uart_en_pin, 0);
+    #endif
+    // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
+
+    free(QN);
+    QN = NULL;
+    // Enable_Ux(U6,_send);
+    // if(usingSIM){
+    //     if(!SIM_send(sendBufferIndex)){
+    //         goto errorSend; 
+    //     }
+    // }else{
+    //     HAL_UART_Transmit(&huart6, uploadDeviceBuffer,sendBufferIndex,2000);
+    // }
+    // osDelay(10);
+    // Enable_Ux(U6,_rec);
+    
+	// resetWithBit(upload_device_info_priority);
+    // return 1;
+    // errorSend:
+    //     #if usingSIM
+    //         uploadInitState = 0;
+    //     #endif
+    //     resetWithBit(upload_device_info_priority);
+    //     #if usingSIM
+    //         return uploadInitState;
+    //     #endif
+        return 0;
+}
 
 
 uint8_t uploadHeartBeat(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin){

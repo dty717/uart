@@ -64,12 +64,14 @@ typedef enum {
 
 #ifdef UART_JIANGNING
     #define COMMON_DEVICE_MN "32018880000001"
+    #define COMMON_DEVICE_CODE "011"
+#elif defined(UART_SUZHOU) && !defined(usingMultiDevice)
+    #define COMMON_DEVICE_MN "3201888000201888000000DA"
+    #define COMMON_DEVICE_CODE "w21003"
 #else
     #define COMMON_DEVICE_MN "88888880000001"
 #endif
-#define COMMON_DEVICE_CODE "011"
 
-#define nb_points 0x2B
 #define setLedValueNums 6
 #define ledAddr 80
 #define deviceAddr 1

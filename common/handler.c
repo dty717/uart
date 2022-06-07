@@ -168,13 +168,13 @@ void appendNumberToStr(int32_t num, uint8_t *target, uint16_t *index)
 void appendFloatToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16_t len)
 {
     int i ;
+    uint16_t a = *index;
     if (num < 0)
     {
-        target[*index++] = '-';
+        target[a++] = '-';
         num = -num;
     }
     uint8_t size = log10(num);
-    uint16_t a = *index;
     int16_t numValue = (int16_t)num;
 
     for (i= size; i >= 0; i--)
@@ -184,26 +184,30 @@ void appendFloatToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16
         numValue = (numValue - tem) / 10;
     }
     a += size + 1;
-    target[a++] = '.';
-    uint16_t power = 10;
-    for (i = 0; i < len; i++)
+    if (len > 0)
     {
-        target[a++] = ((uint32_t)(num*power))%10+'0';
-        power*=10;
+        target[a++] = '.';
+        uint16_t power = 10;
+        for (i = 0; i < len; i++)
+        {
+            target[a++] = ((uint32_t)(num * power)) % 10 + '0';
+            power *= 10;
+        }
     }
+
     *index = a;
 }
 
 
 void appendFloatToStr(float num, uint8_t *target, uint16_t *index)
 {
+    uint16_t a = *index;
     if (num < 0)
     {
-        target[*index++] = '-';
+        target[a++] = '-';
         num = -num;
     }
     uint8_t size = log10(num);
-    uint16_t a = *index;
     int16_t numValue = (int16_t)num;
 
     for (int i = size; i >= 0; i--)

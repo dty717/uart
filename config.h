@@ -10,6 +10,8 @@
 #define PARITY    UART_PARITY_NONE
 #define BAUD_RATE2 115200
 
+#define nb_points 0x3B
+
 // We are using pins 0 and 1, but see the GPIO function select table in the
 // datasheet for information on which other pins can be used.
 #define UART0_EN_PIN 2
@@ -46,26 +48,44 @@
                             #ifndef UART
 // #define UART_TEST
                             #ifndef UART_TEST
-#define UART_KUNSHAN
+// #define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
-// #define UART_SUZHOU
+#define UART_SUZHOU
                             #ifndef UART_SUZHOU
 // #define UART_CLO3
                             #ifndef UART_CLO3
-#define UART_JIANGNING
+// #define UART_JIANGNING
+                            #ifndef UART_JIANGNING
+#define UART_HUBEI
                             #endif
                             #endif
                             #endif
                             #endif
                             #endif
                             #endif
-
-
-
-
 
 #ifdef UART_SUZHOU
+    #define remainingPollutionNums 0
+    
+    // #define usingMultiDevice
+
+    #ifdef usingMultiDevice
+        // #define usingLEDScreen
+        // #define readPHFromADC
+        #ifdef readPHFromADC
+            #define remainingPollutionNums 2
+        #else
+            #define remainingPollutionNums 0
+        #endif
+    #else
+        #define remainingPollutionNums 0
+    #endif
+
+
+#elif defined(UART_HUBEI)
     #define remainingPollutionNums 2
 #else
     #define remainingPollutionNums 0
+#endif
+
 #endif

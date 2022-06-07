@@ -44,7 +44,7 @@ uint8_t checkMN(uint8_t MN_len, uint16_t *current_MN, uint8_t *deviceData_MN)
 			return 0;
 		}
 	}
-	if (MN_len / 2 != 0)
+	if (MN_len % 2 != 0)
 	{
 		if (deviceData_MN[MN_len - 1] != (uint8_t)(current_MN[MNAddr + (MN_len - 1) / 2] >> 8))
 		{
@@ -254,6 +254,8 @@ uint8_t *pollutionCode(uint16_t code)
 		return "w01001";
 	case 1002:
 		return "w01002";
+	case 1003:
+		return "w01003";
 	case 1006:
 		return "w01006";
 	case 1009:
@@ -415,11 +417,15 @@ response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData)
 		{
 			poolNums = 1;
 			pollutionNums = 1;
-#ifdef UART_JIANGNING
-			MN_len = 14;
-#else
-			MN_len = 24;
-#endif
+			#ifdef UART_JIANGNING
+				MN_len = 14;
+			#else
+		        #if defined(UART_SUZHOU) && !defined(usingMultiDevice)
+					MN_len = 24;
+				#else
+					MN_len = 24;
+				#endif
+			#endif
 			poolNum = 1;
 			*deviceData = new_deviceData(poolNums, pollutionNums, MN_len);
 			(*deviceData)->poolNum = poolNum;
@@ -526,9 +532,15 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 			{
 				goto checkPollutionNums;
 			}
-			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
+			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s DataTime:%d-%d-%d %d:%d:%d\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW,
+				   hexToInt(tab_rp_registers[YearMonthAddr] >> 8) + 2000,
+				   hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF),
+				   hexToInt(tab_rp_registers[DateHourAddr] >> 8),
+				   hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF),
+				   hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8),
+				   hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF));
 		}
-		for (i = 0; i < pollutionNums; i++)
+		for (i = 0; i < pollutionNums + remainingPollutionNums; i++)
 		{
 			printf("pollution %d: code=%s,data=%f,state=%d\r\n", i + 1, (*deviceData)->pollutions[i].code, (*deviceData)->pollutions[i].data, (*deviceData)->pollutions[i].state);
 		}
@@ -604,7 +616,7 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		deviceData->MN[i] = (uint8_t)(tab_rp_registers[MNAddr + i / 2] >> 8);
 		deviceData->MN[i + 1] = (uint8_t)(tab_rp_registers[MNAddr + i / 2] & 0x00FF);
 	}
-	if (MN_len / 2 != 0)
+	if (MN_len % 2 != 0)
 	{
 		deviceData->MN[MN_len - 1] = (uint8_t)(tab_rp_registers[MNAddr + (MN_len - 1) / 2] >> 8);
 	}

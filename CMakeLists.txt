@@ -11,6 +11,7 @@ add_executable(uart
   uart_jiangning.c
   uart_test.c
   uart_kunshan.c
+  uart_hubei.c
   uart_CLO3.c
   device.c
   modbus.c
@@ -31,4 +32,4 @@ pico_enable_stdio_usb(uart 1)
 pico_enable_stdio_uart(uart 0)
 
 pico_add_extra_outputs(uart)
-target_link_libraries(uart PRIVATE pico_stdlib pico_multicore hardware_adc hardware_gpio hardware_spi hardware_flash hardware_pio)
+target_link_libraries(uart PRIVATE pico_stdlib pico_multicore hardware_adc hardware_gpio hardware_rtc hardware_spi hardware_flash hardware_pio)

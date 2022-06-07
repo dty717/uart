@@ -27,7 +27,7 @@
 #include "header/gps.h"
 #include "header/common/handler.h"
 
-#ifdef UART_SUZHOU
+#ifdef UART_HUBEI
 
 /// \tag::multicore_dispatch[]
 
@@ -50,6 +50,7 @@ float historyData[256];
 uint16_t poolNums = 0;
 uint16_t pollutionNums;
 
+uint8_t needUpdateServer = 1;
 // Ask core 1 to print a string, to make things easier on core 0
 void core1_entry()
 {
@@ -62,10 +63,12 @@ void core1_entry()
         // which also indicates the result is ready.	
         
         // multicore_fifo_pop_blocking();	
-        sleep_ms(5*60000);	
-        // sleep_ms(10000);	
-        if(deviceData!=NULL){	
-            uploadDevice(deviceData,uart0,UART0_EN_PIN);
+        sleep_ms(5*1000);	
+        // sleep_ms(30000);	
+        //if(n)
+        if(deviceData!=NULL&&needUpdateServer){
+            uploadDeviceHours(deviceData,uart0,UART0_EN_PIN);
+            needUpdateServer = 0;
         }
         // int32_t (*func)() = (int32_t(*)())multicore_fifo_pop_blocking();	
         // int32_t p = multicore_fifo_pop_blocking();	
@@ -106,10 +109,18 @@ void on_uart1_rx() {
     }
 }
 
+bool repeating_timer_callback(struct repeating_timer *t) {
+    // printf("Repeat at %lld\n", time_us_64());
+    needUpdateServer = 1;
+    return true;
+}
+
+
 int main()
 {
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     int res;
+    struct repeating_timer timer;
 
     stdio_init_all();    
 
@@ -121,8 +132,8 @@ int main()
     gpio_init(uart1_EN);
     gpio_set_dir(uart0_EN, GPIO_OUT);
     gpio_set_dir(uart1_EN, GPIO_OUT);
-    gpio_put(uart0_EN, 1);
-    gpio_put(uart1_EN, 1);
+    gpio_put(uart0_EN, 0);
+    gpio_put(uart1_EN, 0);
 
     uart_init(uart0, BAUD_RATE2);
     uart_init(uart1, BAUD_RATE);
@@ -239,77 +250,57 @@ int main()
 
         // uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*(deviceData->poolNum-1);
         // historyData = (float *)malloc(nb_points * sizeof(float));
-
-        // for (i = 0; i < poolNums; i++)
-        // {
-        //     // *((pollutionNums+remainingPollutionNums)*4+1)
-        //     uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*i;
-        //     if(flashData[HistroySaveAddr+shiftHistoryAddr]==i+1){
-        //         for (size_t j = 0; j < pollutionNums; j++)
-        //         {
-        //             historyData[i*(pollutionNums+remainingPollutionNums)+j] = flashData[i+j];
-        //         }
-        //     }
-        // }
+		
+        for (i = 0; i < poolNums; i++)	
+        {	
+            // *((pollutionNums+remainingPollutionNums)*4+1)	
+            uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*i;	
+            if(flashData[HistroySaveAddr+shiftHistoryAddr]==i+1){	
+                for (size_t j = 0; j < pollutionNums; j++)	
+                {	
+                    historyData[i*(pollutionNums+remainingPollutionNums)+j] = flashData[i+j];	
+                }	
+            }	
+            // if(flashData[HistroySaveAddr + shiftHistoryAddr+1+4*i]){	
+            // }	
+        }
     }
 
     // This example dispatches arbitrary functions to run on the second core
     // To do this we run a dispatcher on the second core that accepts a function
     // pointer and runs it
     multicore_launch_core1(core1_entry);
-    
+
+    add_repeating_timer_ms(4 * 60 * 60 * 1000, repeating_timer_callback, NULL, &timer);
+    // add_repeating_timer_ms(1 * 1000, repeating_timer_callback, NULL, &timer);
+
     uint8_t times = 0;
     uint8_t currentPool = 0;
 
     while (true)
     {
-        printf("uart_suzhou\r\n");
+        printf("uart_hubei\r\n");
         // print_buf(flashData,40);
         // printf("\r\n");
         // print_buf(flashData+16,40);
         
-        printf("\r\n");
-        if(deviceData!=NULL&&ctx->debug)
-            printf("out %d %d %d\r\n", deviceData->poolNums, deviceData->pollutionNums, deviceData->MN_len);
-        #ifdef usingLEDScreen
-            times++;
-            if(times>4){
-                times = 0;
-                if(poolNums){
-                    set_led_values(ctx,currentPool+1,(pollutionNums+remainingPollutionNums)*2,flashData+HistroySaveAddr+4*currentPool*(pollutionNums+remainingPollutionNums));
-                    currentPool++;
-                    if(currentPool>=poolNums){
-                        currentPool = 0;
-                    }
-                }
-            }
-        #endif
-        #ifdef readPHFromADC
-            adc_select_input(TUR_ADC);
-            uint adc_TUR = adc_read();
-            adc_select_input(PH_ADC);
-            uint adc_PH = adc_read();
-            data[0] = _4_20mvTofloat(adc_TUR * conversion_factor / 160 * 1000, 0, 100);
-            data[1] = _4_20mvTofloat(adc_PH * conversion_factor / 160 * 1000, 0, 14);
-
-            if(deviceData!=NULL){
-                deviceData->pollutions[deviceData->pollutionNums].code = "w01012";
-                deviceData->pollutions[deviceData->pollutionNums].data = data[0];
-                deviceData->pollutions[deviceData->pollutionNums].state = 1;
-
-                deviceData->pollutions[deviceData->pollutionNums + 1].code = "w01001";
-                deviceData->pollutions[deviceData->pollutionNums + 1].data = data[1];
-                deviceData->pollutions[deviceData->pollutionNums + 1].state = 1;
-            }
-        #endif
-
+        adc_select_input(TUR_ADC);
+        uint adc_TUR = adc_read();
+	    adc_select_input(PH_ADC);
+        uint adc_PH = adc_read();
+        data[0] = _4_20mvTofloat(adc_TUR * conversion_factor / 160 * 1000, 0, 100);
+        data[1] = _4_20mvTofloat(adc_PH * conversion_factor / 160 * 1000, 0, 14);
+        if(deviceData!=NULL){
+            deviceData->pollutions[deviceData->pollutionNums].code = "w01003";
+            deviceData->pollutions[deviceData->pollutionNums].data = data[0] > 0 ? data[0] : -data[0];
+            deviceData->pollutions[deviceData->pollutionNums].state = 1;
+            deviceData->pollutions[deviceData->pollutionNums + 1].code = "w01001";
+            deviceData->pollutions[deviceData->pollutionNums + 1].data = data[1] > 0 ? data[1] : -data[1];
+            deviceData->pollutions[deviceData->pollutionNums + 1].state = 1;
+        }
         // set_led_valueByAddr(ctx, LED_VALUE_ADDRESS + setLedValueNums * 2, data, dataLen);
         // printf("PH:%f,TUR%f\r\n",data[0],data[1]);
-        #ifdef usingMultiDevice
-            response_type_t needUpdate = ask_all_devices(ctx,&deviceData);
-        #else
-            response_type_t needUpdate = ask_common_device(ctx,&deviceData);
-        #endif
+        response_type_t needUpdate = ask_all_devices(ctx,&deviceData);
         switch (needUpdate)
         {
         case noResponse:
