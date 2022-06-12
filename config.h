@@ -48,7 +48,7 @@
                             #ifndef UART
 // #define UART_TEST
                             #ifndef UART_TEST
-// #define UART_KUNSHAN
+#define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
 #define UART_SUZHOU
                             #ifndef UART_SUZHOU
@@ -67,7 +67,7 @@
 #ifdef UART_SUZHOU
     #define remainingPollutionNums 0
     
-    // #define usingMultiDevice
+    #define usingMultiDevice
 
     #ifdef usingMultiDevice
         // #define usingLEDScreen

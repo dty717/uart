@@ -62,7 +62,7 @@ void core1_entry()
         // which also indicates the result is ready.	
         
         // multicore_fifo_pop_blocking();	
-        sleep_ms(5*60000);	
+        sleep_ms(5*60000);
         // sleep_ms(10000);	
         if(deviceData!=NULL){	
             uploadDevice(deviceData,uart0,UART0_EN_PIN);

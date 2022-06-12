@@ -398,34 +398,27 @@ response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData)
 
 	if (rc > 0)
 	{
-		print_buf(tab_rp_registers, 64);
+		// print_buf(tab_rp_registers, 64);
 
-		uint8_t b0 = (uint8_t)(tab_rp_registers[0] >> 8);
-		uint8_t b1 = (uint8_t)(tab_rp_registers[0] & 0x00FF);
-		uint8_t b2 = (uint8_t)(tab_rp_registers[1] >> 8);
-		uint8_t b3 = (uint8_t)(tab_rp_registers[1] & 0x00FF);
+		uint8_t b0 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] >> 8);
+		uint8_t b1 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] & 0x00FF);
+		uint8_t b2 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] >> 8);
+		uint8_t b3 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] & 0x00FF);
 		value = bytesToFloat(b0, b1, b2, b3);
 
-		year = hexToInt(tab_rp_registers[YearMonthAddr] >> 8);
-		month = hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF);
-		date = hexToInt(tab_rp_registers[DateHourAddr] >> 8);
-		hour = hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF);
-		minute = hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8);
-		second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
+		year = hexToInt(tab_rp_registers[commonYearMonthAddr] >> 8);
+		month = hexToInt(tab_rp_registers[commonYearMonthAddr] & 0x00FF);
+		date = hexToInt(tab_rp_registers[commonDateHourAddr] >> 8);
+		hour = hexToInt(tab_rp_registers[commonDateHourAddr] & 0x00FF);
+		minute = hexToInt(tab_rp_registers[commonMinuteSecondAddr] >> 8);
+		second = hexToInt(tab_rp_registers[commonMinuteSecondAddr] & 0x00FF);
 
 		if (*deviceData == NULL)
 		{
 			poolNums = 1;
 			pollutionNums = 1;
-			#ifdef UART_JIANGNING
-				MN_len = 14;
-			#else
-		        #if defined(UART_SUZHOU) && !defined(usingMultiDevice)
-					MN_len = 24;
-				#else
-					MN_len = 24;
-				#endif
-			#endif
+			MN_len = COMMON_MN_LEN;
+
 			poolNum = 1;
 			*deviceData = new_deviceData(poolNums, pollutionNums, MN_len);
 			(*deviceData)->poolNum = poolNum;
@@ -441,14 +434,17 @@ response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData)
 				(*deviceData)->hour != hour ||
 				(*deviceData)->minute != minute ||
 				(*deviceData)->second != second)
-			{
+			{				
 				goto checkPollutionNums;
 			}
-			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW);
+			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s DataTime:%d-%d-%d %d:%d:%d\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW,
+				   year + 2000,month,date,hour,minute,second);
 		}
 
-		// printf("val:%d %d %d %d %d %d \r\n", year, month,date ,hour,minute,second);
-
+		for (i = 0; i < pollutionNums + remainingPollutionNums; i++)
+		{
+			printf("pollution %d: code=%s,data=%f,state=%d\r\n", i + 1, (*deviceData)->pollutions[i].code, (*deviceData)->pollutions[i].data, (*deviceData)->pollutions[i].state);
+		}
 		free(tab_rp_registers);
 		tab_rp_registers = NULL;
 		return normal;
@@ -470,11 +466,45 @@ addNewCommonDate:
 	flashData[0] = '1';
 	flashData[1] = '2';
 	flashData[2] = '3';
-	for (i = 0; i < COMMON_DEVICE_nb_points; i++)
-	{
-		flashData[i * 2 + configAddr] = tab_rp_registers[i] >> 8;
-		flashData[i * 2 + configAddr + 1] = tab_rp_registers[i] & 0xff;
-	}
+	flashData[2 * poolNumsAddr + configAddr] = 0;
+	flashData[2 * poolNumsAddr + configAddr + 1] = 1;
+
+	flashData[2 * poolNumAddr + configAddr] = 0;
+	flashData[2 * poolNumAddr + configAddr + 1] = 1;
+
+	flashData[2 * pollutionNumsAddr + configAddr] = 0;
+	flashData[2 * pollutionNumsAddr + configAddr + 1] = 1;
+
+	flashData[2 * MN_lenAddr + configAddr] = 0;
+	flashData[2 * MN_lenAddr + configAddr + 1] = COMMON_MN_LEN & 0xff;
+
+	strcpy(flashData + 2 * MNAddr + configAddr, COMMON_DEVICE_MN);
+
+	flashData[2 * YearMonthAddr + configAddr] = intToHex(year);
+	flashData[2 * YearMonthAddr + configAddr + 1] = intToHex(month);
+
+	flashData[2 * DateHourAddr + configAddr] = intToHex(date);
+	flashData[2 * DateHourAddr + configAddr + 1] = intToHex(hour);
+	
+	flashData[2 * MinuteSecondAddr + configAddr] = intToHex(minute);
+	flashData[2 * MinuteSecondAddr + configAddr + 1] = intToHex(second);
+
+	flashData[2 * pollutionCodeAddr + configAddr] = COMMON_DEVICE_CODE >> 8;
+	flashData[2 * pollutionCodeAddr + configAddr + 1] = COMMON_DEVICE_CODE & 0xff;
+
+	flashData[2 * pollutionDataAddr + configAddr] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] >> 8);
+	flashData[2 * pollutionDataAddr + configAddr + 1] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] & 0x00FF);
+	flashData[2 * pollutionDataAddr + configAddr + 2] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] >> 8);
+	flashData[2 * pollutionDataAddr + configAddr + 3] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] & 0x00FF);
+
+	flashData[2 * pollutionStateAddr + configAddr] = 0;
+	flashData[2 * pollutionStateAddr + configAddr + 1] = 1;
+
+	// for (i = 0; i < COMMON_DEVICE_nb_points; i++)
+	// {
+	// 	flashData[i * 2 + configAddr] = tab_rp_registers[i] >> 8;
+	// 	flashData[i * 2 + configAddr + 1] = tab_rp_registers[i] & 0xff;
+	// }
 
 	flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
 	flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
@@ -583,24 +613,24 @@ void addNewCommonDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 	// uint16_t MN_len = 24;
 	size_t i;
 	deviceData->MN = COMMON_DEVICE_MN;
-	// deviceData->MN_len = MN_len;
+	deviceData->MN_len = COMMON_MN_LEN;
 	deviceData->poolNum = poolNum;
 
-	deviceData->year = hexToInt(tab_rp_registers[YearMonthAddr] >> 8);
-	deviceData->month = hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF);
-	deviceData->date = hexToInt(tab_rp_registers[DateHourAddr] >> 8);
-	deviceData->hour = hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF);
-	deviceData->minute = hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8);
-	deviceData->second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
+	deviceData->year = hexToInt(tab_rp_registers[commonYearMonthAddr] >> 8);
+	deviceData->month = hexToInt(tab_rp_registers[commonYearMonthAddr] & 0x00FF);
+	deviceData->date = hexToInt(tab_rp_registers[commonDateHourAddr] >> 8);
+	deviceData->hour = hexToInt(tab_rp_registers[commonDateHourAddr] & 0x00FF);
+	deviceData->minute = hexToInt(tab_rp_registers[commonMinuteSecondAddr] >> 8);
+	deviceData->second = hexToInt(tab_rp_registers[commonMinuteSecondAddr] & 0x00FF);
 
 	for (i = 0; i < pollutionNums; i++)
 	{
-		deviceData->pollutions[i].code = COMMON_DEVICE_CODE;
+		deviceData->pollutions[i].code = pollutionCode(COMMON_DEVICE_CODE);
 		// printf("%d",sizeof(pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i])));
-		uint8_t b0 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] >> 8);
-		uint8_t b1 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] & 0x00FF);
-		uint8_t b2 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] >> 8);
-		uint8_t b3 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] & 0x00FF);
+		uint8_t b0 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + PollutionDataLen * i] >> 8);
+		uint8_t b1 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + PollutionDataLen * i] & 0x00FF);
+		uint8_t b2 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1 + PollutionDataLen * i] >> 8);
+		uint8_t b3 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1 + PollutionDataLen * i] & 0x00FF);
 		deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
 		deviceData->pollutions[i].state = 1;
@@ -632,7 +662,7 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 	deviceData->second = hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF);
 
 	pollutionNums = tab_rp_registers[pollutionNumsAddr];
-#ifdef UART_SUZHOU
+#if defined(UART_SUZHOU) && defined(usingMultiDevice)
 	uint16_t shiftHistoryAddr = 4 * (pollutionNums + remainingPollutionNums) * (deviceData->poolNum - 1);
 #endif
 	for (i = 0; i < pollutionNums; i++)
@@ -643,11 +673,14 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		uint8_t b1 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] & 0x00FF);
 		uint8_t b2 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] >> 8);
 		uint8_t b3 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] & 0x00FF);
-		deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);
+		#ifdef UART_KUNSHAN
+			deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);;
+		#else
+			deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
+		#endif
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
-		// printf("deviceData  %f  %f  %f  %f\r\n",bytesToFloat(b0, b1, b2, b3),bytesToFloat(b2, b3, b0, b1),bytesToFloat(b1, b0, b3, b2),bytesToFloat(b3, b2, b1, b0));
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
-#ifdef UART_SUZHOU
+#if defined(UART_SUZHOU) && defined(usingMultiDevice)
 		flashData[HistroySaveAddr + shiftHistoryAddr + 4 * i] = b0;
 		flashData[HistroySaveAddr + shiftHistoryAddr + 1 + 4 * i] = b1;
 		flashData[HistroySaveAddr + shiftHistoryAddr + 2 + 4 * i] = b2;

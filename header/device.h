@@ -35,24 +35,21 @@ typedef enum {
     pollutionNumsAddr,
     MN_lenAddr,
     MNAddr,
-#ifdef UART_JIANGNING
-    YearMonthAddr = 4,
-#else
     YearMonthAddr = MNAddr+12,
-#endif
     DateHourAddr,
     MinuteSecondAddr,
     pollutionCodeAddr,
-#ifdef UART_JIANGNING
-    pollutionDataAddr = 0,
-#else
     pollutionDataAddr,
-#endif
     pollutionStateAddr=pollutionDataAddr+2,
 } deviceDataAddr;//uint 16
 
-
-
+typedef enum
+{
+    commonPollutionDataAddr,
+    commonYearMonthAddr = 4,
+    commonDateHourAddr,
+    commonMinuteSecondAddr,
+} commonDeviceDataAddr; // uint 16
 
 #define UT_REGISTERS_ADDRESS 0x57
 #define LED_POOL_ADDRESS 0x10C0
@@ -64,12 +61,16 @@ typedef enum {
 
 #ifdef UART_JIANGNING
     #define COMMON_DEVICE_MN "32018880000001"
-    #define COMMON_DEVICE_CODE "011"
+    #define COMMON_DEVICE_CODE 11
+    #define COMMON_MN_LEN     14
 #elif defined(UART_SUZHOU) && !defined(usingMultiDevice)
     #define COMMON_DEVICE_MN "3201888000201888000000DA"
-    #define COMMON_DEVICE_CODE "w21003"
+    #define COMMON_DEVICE_CODE 21003
+    #define COMMON_MN_LEN     24
 #else
     #define COMMON_DEVICE_MN "88888880000001"
+    #define COMMON_DEVICE_CODE 11
+    #define COMMON_MN_LEN     24
 #endif
 
 #define setLedValueNums 6

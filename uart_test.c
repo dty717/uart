@@ -40,10 +40,10 @@ char *datetime_str = &datetime_buf[0];
 datetime_t datetimeNow = {
     .year = 2022,
     .month = 06,
-    .day = 07,
-    .dotw = 2, // 0 is Sunday, so 5 is Friday
-    .hour = 13,
-    .min = 45,
+    .day = 9,
+    .dotw = 4, // 0 is Sunday, so 5 is Friday
+    .hour = 16,
+    .min = 05,
     .sec = 00};
 
 /// \tag::multicore_dispatch[]
@@ -210,16 +210,21 @@ void on_uart1_rx() {
 
 bool repeating_timer_callback(struct repeating_timer *t)
 {
+
     key1 = gpio_get(KEY1_PIN);
     key2 = gpio_get(KEY2_PIN);
     key3 = gpio_get(KEY3_PIN);
     key4 = gpio_get(KEY4_PIN);
     rtc_get_datetime(&datetimeNow);
+    if (datetimeNow.hour % 4 != 0)
+    {
+        return true;
+    }
+
     // datetimeNow.year
-    ;
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + YearMonthAddr] = (intToHex(datetimeNow.year - 2000) << 8) + intToHex(datetimeNow.month);
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr] = (intToHex(datetimeNow.day) << 8) + intToHex(datetimeNow.hour);
-    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = (intToHex(datetimeNow.min) << 8) + intToHex(datetimeNow.sec);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = (intToHex(rand() % 15 + 10) << 8) + intToHex(rand() % 60);
 
     uint16_t codes[] = {1009, 21011, 1010, 21003, 1018, 1014};
     float datas[] = {rand()%10000/1000.0, rand()%10000/1000.0,rand()%10000/1000.0,rand()%10000/1000.0, rand()%10000/1000.0, rand()%10000/1000.0};
@@ -453,7 +458,7 @@ int main()
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 11] = ('2' << 8) + '0';
 
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + YearMonthAddr] = (intToHex(datetimeNow.year - 2000) << 8) + intToHex(datetimeNow.month);
-    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr] = (intToHex(datetimeNow.day) << 8) + intToHex(datetimeNow.hour);
+    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr] = (intToHex(datetimeNow.day) << 8) + intToHex((datetimeNow.hour / 4) * 4);
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = (intToHex(datetimeNow.min) << 8) + intToHex(datetimeNow.sec);
 
     uint16_t codes[] = {1009, 21011, 1010, 21003, 1018, 1014};
@@ -477,7 +482,18 @@ int main()
     mb_mapping->tab_registers[COMMON_DEVICE_REGISTERS_ADDRESS + 6] = 0x0030;
 
     struct repeating_timer timer;
-    add_repeating_timer_ms(10 * 10 * 1000, repeating_timer_callback, NULL, &timer);
+    // add_repeating_timer_ms(10 * 10 * 1000, repeating_timer_callback, NULL, &timer);
+
+    datetime_t alarm = {
+        .year  = -1,
+        .month = -1,
+        .day   = -1,
+        .dotw  = -1,
+        .hour  = -1,
+        .min   = 20,
+        .sec   = 00
+    };
+    rtc_set_alarm(&alarm, &repeating_timer_callback);
 
     // This example dispatches arbitrary functions to run on the second core
     // To do this we run a dispatcher on the second core that accepts a function
