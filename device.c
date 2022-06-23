@@ -172,6 +172,10 @@ uint8_t *pollutionCode(uint16_t code)
 		return "002";
 	case 3:
 		return "003";
+	case 4:
+		return "004";
+	case 5:
+		return "005";
 	case 10:
 		return "010";
 	case 11:
@@ -234,6 +238,7 @@ uint8_t *pollutionCode(uint16_t code)
 		// 	return "w99001";
 		// break;
 	default:
+		printf("code:%d\r\n",code);
 		return "xxx";
 		// break;
 	}
@@ -492,10 +497,10 @@ addNewCommonDate:
 	flashData[2 * pollutionCodeAddr + configAddr] = COMMON_DEVICE_CODE >> 8;
 	flashData[2 * pollutionCodeAddr + configAddr + 1] = COMMON_DEVICE_CODE & 0xff;
 
-	flashData[2 * pollutionDataAddr + configAddr] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] >> 8);
-	flashData[2 * pollutionDataAddr + configAddr + 1] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] & 0x00FF);
-	flashData[2 * pollutionDataAddr + configAddr + 2] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] >> 8);
-	flashData[2 * pollutionDataAddr + configAddr + 3] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] & 0x00FF);
+	flashData[2 * pollutionDataAddr + configAddr] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] >> 8);
+	flashData[2 * pollutionDataAddr + configAddr + 1] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] & 0x00FF);
+	flashData[2 * pollutionDataAddr + configAddr + 2] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] >> 8);
+	flashData[2 * pollutionDataAddr + configAddr + 3] = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] & 0x00FF);
 
 	flashData[2 * pollutionStateAddr + configAddr] = 0;
 	flashData[2 * pollutionStateAddr + configAddr + 1] = 1;
@@ -673,11 +678,11 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		uint8_t b1 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] & 0x00FF);
 		uint8_t b2 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] >> 8);
 		uint8_t b3 = (uint8_t)(tab_rp_registers[pollutionDataAddr + 1 + PollutionDataLen * i] & 0x00FF);
-		#ifdef UART_KUNSHAN
-			deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);;
-		#else
-			deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
-		#endif
+		// #ifdef UART_KUNSHAN
+		// 	deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);;
+		// #else
+		deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
+		// #endif
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
 #if defined(UART_SUZHOU) && defined(usingMultiDevice)

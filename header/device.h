@@ -64,7 +64,7 @@ typedef enum
     #define COMMON_DEVICE_CODE 11
     #define COMMON_MN_LEN     14
 #elif defined(UART_SUZHOU) && !defined(usingMultiDevice)
-    #define COMMON_DEVICE_MN "3201888000201888000000DA"
+    #define COMMON_DEVICE_MN "0000000D1000001000000012"
     #define COMMON_DEVICE_CODE 21003
     #define COMMON_MN_LEN     24
 #else
