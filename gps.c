@@ -21,7 +21,7 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
     return GNGGA;
 
     analyseGPS:
-    pointIndex = 7;
+        pointIndex = 7;
         startIndex = 7;
         while (pointIndex<len)
         {

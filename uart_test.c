@@ -40,10 +40,10 @@ char *datetime_str = &datetime_buf[0];
 datetime_t datetimeNow = {
     .year = 2022,
     .month = 06,
-    .day = 9,
-    .dotw = 4, // 0 is Sunday, so 5 is Friday
-    .hour = 16,
-    .min = 05,
+    .day = 28,
+    .dotw = 2, // 0 is Sunday, so 5 is Friday
+    .hour = 9,
+    .min = 28,
     .sec = 00};
 
 /// \tag::multicore_dispatch[]

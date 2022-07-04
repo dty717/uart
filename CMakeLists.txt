@@ -14,14 +14,15 @@ add_executable(uart
   uart_kunshan.c
   uart_hubei.c
   uart_CLO3.c
+  crc.c
   device.c
   modbus.c
   modbusRTU.c
-  crc.c
   J212.c
   flash.c
-  common/handler.c
+  gprs.c
   gps.c
+  common/handler.c
 )
 
 pico_generate_pio_header(uart ${CMAKE_CURRENT_LIST_DIR}/uart_rx.pio)
