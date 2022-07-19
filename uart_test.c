@@ -39,12 +39,13 @@ char *datetime_str = &datetime_buf[0];
 // Start on Friday 5th of June 2020 15:45:00
 datetime_t datetimeNow = {
     .year = 2022,
-    .month = 06,
-    .day = 28,
+    .month = 07,
+    .day = 5,
     .dotw = 2, // 0 is Sunday, so 5 is Friday
     .hour = 9,
-    .min = 28,
-    .sec = 00};
+    .min = 50,
+    .sec = 00
+};
 
 /// \tag::multicore_dispatch[]
 

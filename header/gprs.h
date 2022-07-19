@@ -26,11 +26,12 @@ extern "C" {
 #define AT_get_local_IP_address                     14
 #define AT_start_connection                         15
 #define AT_request_initiation_for_data_sending      16
-#define AT_request_data_sending_error               17
-#define AT_receive                                  18
-#define AT_network_connnect                         19
-#define AT_network_fail                             20
-#define AT_error                                    21
+#define AT_request_data_sending_success             17
+#define AT_request_data_sending_error               18
+#define AT_receive                                  19
+#define AT_network_connnect                         20
+#define AT_network_fail                             21
+#define AT_error                                    22
 
 
 #define AT_Commond                                       "AT"
@@ -44,11 +45,12 @@ extern "C" {
 #define AT_attach_to_GPRS_Commond                        "AT+CGATT=1"
 #define AT_enable_single_connection_Commond              "AT+CIPMUX=0"
 #define AT_enable_multi_connection_Commond               "AT+CIPMUX=1"
-#define AT_ping_Commond                                  "AT+CSTT="
+#define AT_ping_Commond                                  "AT+CSTT"
 #define AT_bring_up_wireless_connection_Commond          "AT+CIICR"
 #define AT_get_local_IP_address_Commond                  "AT+CIFSR"
 #define AT_start_connection_Commond                      "AT+CIPSTART="
 #define AT_request_initiation_for_data_sending_Commond   "AT+CIPSEND"
+#define AT_close_connection_Commond                      "AT+CIPCLOSE="
 #define AT_receive_Commond                               "+RECEIVE"
 
 #define AT_send_end_Commond "\r\n"
@@ -93,13 +95,14 @@ typedef struct struct_Client
 {
     uint8_t channel;
     uint8_t state;
-    uint8_t  *addr;
+    uint8_t *addr;
     uint8_t *networkType;
     uint16_t port;
     uint8_t beatData[20];
     uint8_t beatDataLen;
     uint8_t connectState;
     uint8_t sendState;
+    int (*handleRec)(uint8_t *msg);
 } Client;
 
 // extern AT_STATE *AT_state;
@@ -107,10 +110,16 @@ typedef struct struct_Client
 
 typedef struct struct_GPRS
 {
-    AT_STATE *AT_state;
+    uint8_t rec[1024];
+    uint16_t recLen;
+    uint16_t recIndex;
+    uint8_t state;
+    AT_STATE AT_state;
     Client client[clientsNumbers];
 } GPRS_t;
 
+int gprs_add_RXData(GPRS_t *gprs,uint8_t ch);
+int gprs_flush(GPRS_t *gprs);
 void uploadInit(GPRS_t *gprs , uart_inst_t *uart);
 void initNet(uart_inst_t *uart);
 void sendATCommond(uint8_t AT_CPOMMOND,uart_inst_t *uart);
@@ -119,15 +128,19 @@ int checkSingleATCommond(uint8_t ATx);
 uint8_t* AT_send_message(uint8_t AT_CPOMMOND);
 uint8_t* AT_reply_message(uint8_t AT_CPOMMOND);
 uint8_t AT_Message_Handle(GPRS_t *gprs,uint8_t type,uint8_t *msg);
-uint8_t* clearBuf(uint8_t *rec_buf,uint32_t *recLen,uint8_t *type);
+uint8_t AT_Message_HandleRecive(GPRS_t *gprs);
+uint8_t* gprs_readBuf(uint8_t *rec_buf,uint16_t rec_len,uint8_t *type);
 void initATState(GPRS_t *gprs);
 void resetATState(GPRS_t *gprs);
 uint8_t* start_multi_channel_connection(uint8_t channel,uint8_t *netWorkType,uint8_t* url,uint16_t port);
-uint8_t* AT_Ping(uint8_t* url);
-uint8_t sendTCPHeader(uint8_t *header,uint16_t len,uint16_t *headerBufferIndex);
-uint8_t handleReceive(uint8_t *msg);
+void setUpConnection(Client client, GPRS_t *gprs, uart_inst_t *uart);
+uint8_t SIM_send(Client *client,GPRS_t *gprs, uint8_t *data, uart_inst_t *uart);
+uint8_t* AT_ANP();
+uint8_t sendTCPHeader(uint8_t *header, uint8_t channel,uint16_t len,uint16_t *headerBufferIndex);
+uint8_t handleReceive(GPRS_t *gprs, uint8_t *msg);
 uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg);
 uint8_t containKeyWords(uint8_t* key, uint8_t* msg);
+uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len);
 
 #define NOState 0
 
@@ -163,9 +176,9 @@ uint8_t containKeyWords(uint8_t* key, uint8_t* msg);
 #define ping_state_success 1
 #define ping_state_error 2
 
-#define Handle_idle 0
-#define Handle_busy 1
-#define Handle_before_finish 2
+#define Handle_idle 1
+#define Handle_busy 2
+#define Handle_before_finish 3
 
 #define tryTimesConst 3
 

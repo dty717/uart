@@ -45,14 +45,18 @@
 #define HistroySaveAddr 150
 
 #define usingSIM
+
+#define resetSIM_PIN 10
 #define clientsNumbers 1
 
 // #define UART
                             #ifndef UART
-#define UART_TEST
+// #define UART_TEST
                             #ifndef UART_TEST
+#define UART_TEST_GPRS
+                            #ifndef UART_TEST_GPRS
 #define UART_TEST2
-                            #ifndef UART_TEST2                            
+                            #ifndef UART_TEST2
 // #define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
 // #define UART_SUZHOU
@@ -62,6 +66,7 @@
 // #define UART_JIANGNING
                             #ifndef UART_JIANGNING
 #define UART_HUBEI
+                            #endif
                             #endif
                             #endif
                             #endif

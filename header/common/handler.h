@@ -29,6 +29,7 @@ extern "C"
     uint8_t startWith(uint8_t *target, uint8_t *source);
     uint8_t startWithIndex(uint8_t *target, uint8_t *source, uint16_t start, uint16_t end);
     uint8_t endWith(uint8_t *target, uint8_t *source);
+    uint8_t endWithWithLen(uint8_t *target, uint32_t len, uint8_t *source);
     uint32_t toNumber(uint8_t *target, uint16_t startIndex, uint16_t endIndex);
     float toFloat(uint8_t *target, uint16_t startIndex, uint16_t endIndex);
     uint8_t containKeyWords(uint8_t *key, uint8_t *msg);

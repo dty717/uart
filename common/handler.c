@@ -48,8 +48,13 @@ uint8_t startWithIndex(uint8_t *target, uint8_t *source, uint16_t start, uint16_
 
 uint8_t endWith(uint8_t *target, uint8_t *source)
 {
-    uint32_t len = _len_(target);
     uint32_t lenSource = _len_(source);
+    return endWithWithLen(target, lenSource, source);
+}
+
+uint8_t endWithWithLen(uint8_t *target, uint32_t lenSource, uint8_t *source)
+{
+    uint32_t len = _len_(target);
     if (lenSource < len)
     {
         return 0;
@@ -63,6 +68,8 @@ uint8_t endWith(uint8_t *target, uint8_t *source)
     }
     return 1;
 }
+
+
 
 float bytesToFloat(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 {

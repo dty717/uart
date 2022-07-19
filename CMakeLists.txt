@@ -10,6 +10,7 @@ add_executable(uart
   uart_suzhou.c
   uart_jiangning.c
   uart_test.c
+  uart_test_gprs.c
   uart_test2.c
   uart_kunshan.c
   uart_hubei.c

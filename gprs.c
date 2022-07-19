@@ -25,6 +25,22 @@ volatile uint8_t finishedState;
     // {4,NOState,"144.202.5.178",TCP,8884, {99,0,20,99,'\r','\n'},4,NOState,NOState}
 // };
 
+int gprs_add_RXData(GPRS_t *gprs,uint8_t ch){
+    if(gprs->recLen==1024){
+        gprs->recIndex = 0;
+        gprs->recLen = 0;
+        return 0;
+    }
+    gprs->rec[gprs->recLen] = ch;
+    gprs->recLen++;
+    return 1;
+}
+int gprs_flush(GPRS_t *gprs){
+    gprs->recIndex = 0;
+    gprs->recLen = 0;
+    return 1;
+}
+
 #define wait_delay(time, times) \
     waitTimes = times;\
     while (handleState || recFlag ||!finishedState)\
@@ -37,151 +53,780 @@ volatile uint8_t finishedState;
 
 void uploadInit(GPRS_t *gprs , uart_inst_t *uart)
 {
+    int8_t tryTimes=tryTimesConst;
+    resetATState(gprs);
+    gprs->state = NOState;
+    uint32_t index=0;
+    uint16_t replyChance=0;
+    int waitTimes =0;
+    uint8_t type = 0;
+    uint8_t *msg;
+    ok:
+        replyChance++;
+        if (replyChance > 5)
+        {
+            goto resetSIM;
+        }
+        sendATCommondMsg(AT_send_message(AT),uart);
+        sleep_ms(100);
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("ok msg:%s,state:%d\r\n",msg,gprs->AT_state.state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if(type != AT || gprs->AT_state.state!=OK){
+            goto ok;
+        }
+    checkIfOpen:
+        sendATCommondMsg(AT_send_message(AT_check_if_open),uart);
+        sleep_ms(100);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("checkIfOpen msg:%s,function_state:%d\r\n",msg,gprs->AT_state.function_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if(type != AT_check_if_open){
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }else{
+            if(gprs->AT_state.function_state == function_open){
+                goto checkForSignal;
+            }else if(gprs->AT_state.function_state == function_close){
+                goto open;
+            }else{
+                goto close;
+            }
+        }
+    close:
+        sendATCommondMsg(AT_send_message(AT_close),uart);
+        sleep_ms(800);
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("close msg:%s,function_state:%d\r\n",msg,gprs->AT_state.function_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if(type != AT_close || gprs->AT_state.function_state != function_close){
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+    open:
+        sendATCommondMsg(AT_send_message(AT_open),uart);
+        sleep_ms(12000);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("open msg:%s,function_state:%d\r\n",msg,gprs->AT_state.function_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if(type != function_open){
+            sleep_ms(1000);
+            resetATState(gprs);
+            printf("go to ok\r\n");
+            goto ok;
+        }else{
+            if(gprs->AT_state.function_state != function_open){
+                goto checkIfOpen;
+            }
+        }
+    checkForSignal:
+        sendATCommondMsg(AT_send_message(AT_check_for_signal),uart);
+        sleep_ms(100);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("msg:%s,signal_state:%d\r\n",msg,gprs->AT_state.signal_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if(type != AT_check_for_signal){
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }else{
+            if(gprs->AT_state.signal_state<=0){
+                sleep_ms(1000);
+                goto checkIfOpen;
+            }
+        }
+    checkIfConnected:
+        sendATCommondMsg(AT_send_message(AT_check_if_connected),uart);
+        sleep_ms(100);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("msg:%s,GPRS_state:%d\r\n",msg,gprs->AT_state.GPRS_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_check_if_connected)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.GPRS_state == detach_from_GPRS)
+            {
+                sleep_ms(3000);
+                goto attachToGPRS;
+            }
+            else if (gprs->AT_state.GPRS_state == attach_to_GPRS)
+            {
+                goto enableMultiConnection;
+            }
+            else if (gprs->AT_state.GPRS_state == attach_to_GPRS_error || gprs->AT_state.GPRS_state == detach_from_GPRS_error)
+            {
+                sleep_ms(10000);
+                printf("gprs error:%d\r\n",gprs->AT_state.GPRS_state);
+                resetATState(gprs);
+                goto close;
+            }else{
+                sleep_ms(10000);
+                resetATState(gprs);
+                goto ok;
+            }
+        }
+    detactFromGPRS:
+        sendATCommondMsg(AT_send_message(AT_detach_from_GPRS),uart);
+        sleep_ms(100);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("detactFromGPRS:msg:%s,GPRS_state:%d\r\n",msg,gprs->AT_state.GPRS_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_detach_from_GPRS)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.GPRS_state == attach_to_GPRS)
+            {
+                goto enableMultiConnection;
+            }
+            else if (gprs->AT_state.GPRS_state == detach_from_GPRS)
+            {
+                goto attachToGPRS;
+            }
+            else
+            {
+                resetATState(gprs);
+                goto close;
+            }
+        }
+    attachToGPRS:
+        sendATCommondMsg(AT_send_message(AT_attach_to_GPRS),uart);
+        sleep_ms(100);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("attachToGPRS:msg:%s,GPRS_state:%d\r\n",msg,gprs->AT_state.GPRS_state);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_attach_to_GPRS)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.GPRS_state == attach_to_GPRS)
+            {
+                goto enableMultiConnection;
+                // goto resetIP;
+            }
+            else if (gprs->AT_state.GPRS_state == detach_from_GPRS)
+            {
+                goto attachToGPRS;
+            }
+            else
+            {
+                sleep_ms(1000);
+                resetATState(gprs);
+                goto close;
+            }
+        }
+    enableMultiConnection:
+        sendATCommondMsg(AT_send_message(AT_enable_multi_connection),uart);
+        sleep_ms(300);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("attachToGPRS:msg:%s,GPRS_state:%d\r\n",msg,gprs->AT_state.connection_mode);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_enable_multi_connection)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.connection_mode == enable_multi_connection)
+            {
+                // goto resetIP;
+            }else if (gprs->AT_state.connection_mode == enable_multi_connection_error)
+            {
+                // sleep_ms(1000);
+                // goto detactFromGPRS;
+                goto resetSIM;
+            }
+            else
+            {
+                sleep_ms(1000);
+                goto enableMultiConnection;
+            }
+        }
+    ping:
+        sendATCommondMsg(AT_send_message(AT_ping),uart);
+        sleep_ms(300);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("attachToGPRS:msg:%s,ping_state:%d\r\n",msg,gprs->AT_state.ping_state);
+        sleep_ms(3000);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_ping)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.ping_state == ping_state_success)
+            {
+                // goto resetIP;
+            }
+            else
+            {
+                sleep_ms(1000);
+                resetATState(gprs);
+                goto detactFromGPRS;
+            }
+        }
+
+    bringUpWirelessConnection:
+        sendATCommondMsg(AT_send_message(AT_bring_up_wireless_connection),uart);
+        sleep_ms(5000);
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_bring_up_wireless_connection)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.bring_up_wireless_connection_state == bring_up_wireless_connection_state_success)
+            {
+                // goto resetIP;
+            }else if (gprs->AT_state.bring_up_wireless_connection_state == bring_up_wireless_connection_state_error)
+            {
+                sleep_ms(1000);
+                goto detactFromGPRS;
+            }
+            else
+            {
+                sleep_ms(1000);
+                resetATState(gprs);
+                goto close;
+            }
+        }
+    localIPAddress$first_is_state$:
+        sendATCommondMsg(AT_send_message(AT_get_local_IP_address),uart);
+        sleep_ms(4800);
+
+        msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+        AT_Message_Handle(gprs,type,msg);
+        printf("attachToGPRS:msg:%s,GPRS_state:%d\r\n",msg,gprs->AT_state.connection_mode);
+        gprs_flush(gprs);
+        if(strcmp("",msg)){
+            free(msg);
+        }
+        if (type != AT_get_local_IP_address)
+        {
+            sleep_ms(1000);
+            resetATState(gprs);
+            goto ok;
+        }
+        else
+        {
+            if (gprs->AT_state.local_IP_address_$first_is_state$[0]!=NOState)
+            {
+                // goto resetIP;
+            }
+            else
+            {
+                sleep_ms(1000);
+                resetATState(gprs);
+                goto detactFromGPRS;
+            }
+        }
+    gprs->state = Handle_idle;
+    return 1;
+    resetSIM:
+        resetATState(gprs);
+        gprs->state = NOState;
+        gpio_init(resetSIM_PIN);
+        gpio_set_dir(resetSIM_PIN, GPIO_OUT);
+        gpio_put(resetSIM_PIN, 0);
+        sleep_ms(200);
+        gpio_deinit(resetSIM_PIN);
+        sleep_ms(5000);
+        return;
+}
+
+void setUpConnection(Client client, GPRS_t *gprs, uart_inst_t *uart)
+{
+    uint8_t type = 0;
+    uint8_t *msg;
+    gprs_flush(gprs);
+    sendATCommondMsg(
+        start_multi_channel_connection(client.channel,client.networkType,client.addr,client.port)
+    ,uart);
+    sleep_ms(1000);
+    msg = gprs_readBuf(gprs->rec, gprs->recLen, &type);
+    if(type == AT_start_connection){
+        if(containKeyWords("ERROR",msg)){
+            gprs_flush(gprs);
+            sendATCommondMsg(AT_send_message(AT_check_if_connected),uart);
+            sleep_ms(100);
+            msg = gprs_readBuf(gprs->rec,gprs->recLen,&type);
+            AT_Message_Handle(gprs,type,msg);
+            gprs_flush(gprs);
+            if (strcmp("", msg))
+            {
+                free(msg);
+            }
+            if (type != AT_check_if_connected)
+            {
+                sleep_ms(1000);
+                resetATState(gprs);
+                return;
+            }
+            else
+            {
+                if (gprs->AT_state.GPRS_state == detach_from_GPRS||gprs->AT_state.GPRS_state == attach_to_GPRS_error || gprs->AT_state.GPRS_state == detach_from_GPRS_error)
+                {
+                    sleep_ms(10000);
+                    resetATState(gprs);
+                    return;
+                }
+            }
+        }
+    }
+    AT_Message_Handle(gprs, type, msg);
+    gprs_flush(gprs);
+    if (strcmp("", msg))
+    {
+        free(msg);
+    }
+    sleep_ms(18000);
+    if (gprs->recLen)
+    {
+        msg = gprs_readBuf(gprs->rec, gprs->recLen, &type);
+        AT_Message_Handle(gprs, type, msg);
+        gprs_flush(gprs);
+        if (strcmp("", msg))
+        {
+            free(msg);
+        }
+    }
 
 }
 
-// void initNet(uart_inst_t *uart){
-// 	if (wait_for_send(upload_device_id_priority)) {
-// 		return;
-// 	}
-
-//     uint8_t header[18];
-//     uint8_t *init = client[0].beatData;
-//     uint16_t headerBufferIndex = 0;
-//     int _tryTimes = tryTimesConst;
-
-//     okTest:
-//         sendATCommondMsg(AT_send_message(AT), U6);
-//         AT_state->state = NOState;
-//         sleep_ms(100);
-//         while (1)
-//         {
-//             sleep_ms(200);
-//             if (AT_state->state == OK)
-//             {
-//                 break;
-//             }
-//             else
-//             {
-//                 if (_tryTimes-- < 0)
-//                 {
-//                     sleep_ms(500);
-//                     if (AT_state->state == OK)
-//                     {
-//                         break;
-//                     }
-//                     resetATState();
-//                     return 0;
-//                 }
-//                 else
-//                 {
-//                     sleep_ms(1000);
-//                     goto okTest;
-//                 }
-//             }
-//         }
-//     sleep_ms(1000);
-//     sendTCPHeader(header, client[0].beatDataLen, &headerBufferIndex);
-//     sleep_ms(1000);
-//     while (handleState)
-//     {
-//         sleep_ms(100);
-//     }
-//     client[0].sendState = sendIdle;
-//     HAL_UART_Transmit(&huart6, header, headerBufferIndex, 1000);
-
-//     int tryTimes = tryTimesConst;
-//     int waitTimes = 0;
-//     while (1)
-//     {
-//         sleep_ms(100);
-//         if (client[0].sendState == sendAble)
-//         {
-//             sleep_ms(800);
-//             break;
-//         }
-//         else
-//         {
-//             if (tryTimes-- < 0)
-//             {
-//                 sleep_ms(200);
-//                 wait_delay(10, 200);
-//                 if (client[0].sendState == sendAble)
-//                 {
-//                     break;
-//                 }
-//                 if(tryTimes<-50){
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-//     sendMode = 1;
-//     #ifdef Debug
-//         #if Debug_send
-//             sendDebugWithLen(header, headerBufferIndex);
-//         #endif
-//     #endif
-//     recBufDelayTimes = 600;
-
-//     while (handleState)
-//     {
-//         sleep_ms(100);
-//     }
-//     sleep_ms(200);
-
-//     HAL_UART_Transmit(&huart6, init, client[0].beatDataLen + 2, 1000);
-//     if (client[0].sendState == sendError)
-//     {
-//         return 0;
-//     }
-//     if(uploadInitState == 2){
-//         return 0;
-//     }
-//     recBufDelayTimes = 1000;
-//     sleep_ms(200);
-//     client[0].sendState = sendIdle;
-//     wait_delay(10, 2000);
-//     sendMode = 0;
-//     if(uploadInitState == 2){
-//         return 0;
-//     }
-
-// #ifdef Debug
-// #if Debug_send
-//     HAL_UART_Transmit(&huart5, init, client[0].beatDataLen + 2, 1000);
-// #endif
-// #endif
-
-//     resetWithBit(upload_device_info_priority);
-// 	resetWithBit(upload_device_id_priority);
-
-//     if (client[0].sendState == sendError)
-//     {
-//         return 0;
-//     }
-//     return 1;
-
-// }
-
-void initATState(GPRS_t *gprs){
-}
 void resetATState(GPRS_t *gprs){
+    gprs->AT_state.state = NOState;
+    gprs->AT_state.function_state = NOState;
+    gprs->AT_state.signal_state = NOState;
+    gprs->AT_state.GPRS_state = NOState;
+    gprs->AT_state.reset_state = NOState;
+    gprs->AT_state.connection_mode = NOState;
+    gprs->AT_state.bring_up_wireless_connection_state = NOState;
+    gprs->AT_state.ping_state = NOState;
+    gprs->AT_state.local_IP_address_$first_is_state$[0] = NOState;
+
+    for (size_t i = 0; i < clientsNumbers; i++)
+    {
+        gprs->client[i].state = NOState;
+        gprs->client[i].connectState = NOState;
+        gprs->client[i].sendState = NOState;
+    }
+    sendMode = 0;
 }
 
-uint8_t sendTCPHeader(uint8_t *header,uint16_t len,uint16_t *headerBufferIndex){
-    // appendArray(AT_request_initiation_for_data_sending_Commond "=",header,headerBufferIndex);
-    // appendNumberToStr(client[0].channel,header,headerBufferIndex);
-    // appendArray(",",header,headerBufferIndex);
-    // appendNumberToStr(len,header,headerBufferIndex);
-    // appendArray("\r\n",header,headerBufferIndex);
-    // header[*headerBufferIndex]='\0';
+uint8_t sendTCPHeader(uint8_t *header, uint8_t channel,uint16_t len,uint16_t *headerBufferIndex){
+    appendArray(AT_request_initiation_for_data_sending_Commond "=",header,headerBufferIndex);
+    appendNumberToStr(channel,header,headerBufferIndex);
+    appendArray(",",header,headerBufferIndex);
+    appendNumberToStr(len,header,headerBufferIndex);
+    appendArray("\r\n",header,headerBufferIndex);
+    header[*headerBufferIndex]='\0';
 }
+
+uint8_t AT_Message_HandleRecive(GPRS_t *gprs)
+{
+    uint8_t type = 0;
+    uint8_t *msg;
+    uint16_t keyIndex = containKeyWordsWithLen(AT_receive_Commond, gprs->rec, gprs->recLen);
+    if (keyIndex)
+    {
+        // gprs_flush(gprs);
+        // uart_write_blocking(uart, header, headerBufferIndex);
+        // sleep_ms(2000);
+        // uart_puts(uart1,"AT_Message_HandleRecive\r\n");
+        if (gprs->recLen > keyIndex - 1)
+        {
+            msg = gprs_readBuf(gprs->rec + (keyIndex - 1), gprs->recLen - (keyIndex - 1), &type);
+            if(AT_Message_Handle(gprs, type, msg)){
+                gprs_flush(gprs);
+            }
+        }
+    }
+}
+
 uint8_t AT_Message_Handle(GPRS_t *gprs, uint8_t type,uint8_t *msg){
-    
+    size_t i = 0;
+    uint8_t addrIndex = 1;
+    uint8_t value = 0;
+    switch (type)
+    {
+    case AT:
+        if(startWith("OK",msg)){
+            gprs->AT_state.state =OK;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.state =Error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_check_if_open:
+        if(containKeyWords("+CFUN:",msg)){
+            switch (getKeyWordValue("+CFUN",msg))
+            {
+            case 0:
+                gprs->AT_state.function_state = function_close;
+                break;
+            case 1:
+                gprs->AT_state.function_state = function_open;
+                break;
+            default:
+                return 0;
+            }
+        }else{
+            return 0;
+        }
+        break;
+    case AT_close:
+        if(startWith("OK",msg)||containKeyWords("+CPIN:NOT READY",msg)){
+            gprs->AT_state.function_state = function_close;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.function_state = function_close_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_open:
+        if (startWith("OK", msg) || containKeyWords("+CPIN:READY", msg))
+        {
+            gprs->AT_state.function_state = function_open;
+        }
+        else if (startWith("ERROR", msg))
+        {
+            gprs->AT_state.function_state = function_open_error;
+        }
+        else
+        {
+            return 0;
+        }
+        break;
+    case AT_check_if_connected:
+        if (containKeyWords("+CGATT:", msg) && endWith("OK", msg))
+        {
+            switch (getKeyWordValue("+CGATT", msg))
+            {
+            case 0:
+                gprs->AT_state.GPRS_state = detach_from_GPRS;
+                break;
+            case 1:
+                gprs->AT_state.GPRS_state = attach_to_GPRS;
+                break;
+            default:
+                return 0;
+            }
+        }
+        else if (startWith("ERROR", msg))
+        {
+            gprs->AT_state.GPRS_state = attach_to_GPRS_error;
+        }
+        else
+        {
+            return 0;
+        }
+        break;
+    case AT_check_for_signal:
+        //"AT+CSQ\r\r\n+CSQ: 19,0\r\n\r\nOK\r\n"
+        if(startWith("+CSQ:",msg)&&endWith("OK",msg)){
+            gprs->AT_state.signal_state = getKeyWordValue("+CSQ:",msg);
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.signal_state = NOState;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_reset_IP:
+        if(startWith("OK",msg)||containKeyWords("SHUT OK",msg)){
+            gprs->AT_state.reset_state = resetComfirm;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.reset_state = resetComfirm_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_detach_from_GPRS:
+        if(startWith("OK",msg)){
+            gprs->AT_state.GPRS_state = detach_from_GPRS;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.GPRS_state = detach_from_GPRS_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_attach_to_GPRS:
+        if(startWith("OK",msg)){
+            gprs->AT_state.GPRS_state = attach_to_GPRS;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.GPRS_state = attach_to_GPRS_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_enable_single_connection:
+        if(startWith("OK",msg)){
+            gprs->AT_state.connection_mode = enable_single_connection;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.connection_mode = enable_single_connection_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_enable_multi_connection:
+        if(startWith("OK",msg)){
+            gprs->AT_state.connection_mode = enable_multi_connection;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.connection_mode = enable_multi_connection_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_ping:
+        if(endWith("OK",msg)){
+            //handle ping
+            gprs->AT_state.ping_state = ping_state_success;
+            // client[0].connectState = pingConnect;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.ping_state = ping_state_error;
+            //gprs->AT_state.connection_mode = enable_multi_connection_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_bring_up_wireless_connection:
+        if(startWith("OK",msg)){
+            gprs->AT_state.bring_up_wireless_connection_state = bring_up_wireless_connection_state_success;
+        }else if(startWith("ERROR",msg)){
+            gprs->AT_state.bring_up_wireless_connection_state = bring_up_wireless_connection_state_error;
+        }else{
+            return 0;
+        }
+        break;
+    case AT_get_local_IP_address:
+        if(_len_(msg)==0){
+            return 0;
+        }
+        gprs->AT_state.local_IP_address_$first_is_state$[0] = 1;
+        for (i = 0; i < _len_(msg); i++)
+        {
+            if (msg[i] <= '9' && msg[i] >= '0')
+            {
+                value *= 10;
+                value += msg[i] - '0';
+            }
+            else
+            {
+                gprs->AT_state.local_IP_address_$first_is_state$[addrIndex++] = value;
+                value = 0;
+                if (addrIndex == 5)
+                {
+                    break;
+                }
+            }
+        }
+        if (addrIndex <= 4)
+        {
+            gprs->AT_state.local_IP_address_$first_is_state$[addrIndex] = value;
+        }
+        break;
+    case AT_start_connection:
+        gprs->AT_state.local_IP_address_$first_is_state$[0] = 1;
+        addrIndex = containKeyWords(", CONNECT OK", msg);
+        value = 0;
+        if (!addrIndex)
+        {
+            addrIndex = containKeyWords(", ALREADY CONNECT", msg);
+        }
+        if (addrIndex)
+        {
+            value = msg[addrIndex - 1 - 1];
+            if (value >= '0' && value <= '9')
+            {
+                if (value - '0' < clientsNumbers)
+                {
+                    gprs->client[value - '0'].connectState = connected;
+                }
+            }
+        }
+        else if (startWith("ERROR", msg))
+        {
+        }
+        else
+        {
+            return 0;
+        }
+        break;
+    case AT_request_initiation_for_data_sending:
+        if(containKeyWords("ERROR",msg)||containKeyWords("FAIL",msg)){
+            gprs->client[0].sendState = sendError;
+        }else{
+            gprs->client[0].sendState = sendAble;
+        }
+        break;
+    case AT_request_data_sending_error:
+        if (msg[0] >= '0' && msg[0] <= '9')
+        {
+            gprs->client[msg[0] - '0'].sendState = sendError;
+        }
+        break;
+    case AT_receive:
+        return handleReceive(gprs, msg);
+    case AT_network_connnect:
+        if (msg[0] >= '0' && msg[0] <= '9')
+        {
+            gprs->client[msg[0] - '0'].connectState = connected;
+        }
+        break;
+    case AT_network_fail:
+        if (msg[0] >= '0' && msg[0] <= '9')
+        {
+            gprs->client[msg[0] - '0'].connectState = closed;
+        }
+        //uploadInitState = 0;
+        break;
+    case AT_error:
+        uploadInitState = 2;
+        sendMode = 0;
+        break;
+    default:
+        return 0;
+    }
+    return 1;
 }
-uint8_t handleReceive(uint8_t *msg){
-    
+uint8_t handleReceive(GPRS_t *gprs, uint8_t *msg){
+    // uart_puts(uart1,"handleReceive\r\n");
+    // return 1;
+    #define checkLen     \
+        if (index > len) \
+        {                \
+            return 0;    \
+        }
+
+    uint8_t clientChannel = 0;
+    uint8_t _char;
+    uint16_t recLen = 0;
+    uint16_t index = 0;
+    uint16_t len = _len_(msg);
+    if (msg[index++] == ',')
+    {
+        clientChannel = msg[index++] - '0';
+        checkLen
+        _char = msg[index++];
+        checkLen 
+        while (_char != ',')
+        {
+            clientChannel = clientChannel * 10 +( _char - '0');
+            _char = msg[index++];
+            checkLen
+        }
+        recLen = msg[index++] - '0';
+        checkLen
+        _char = msg[index++];
+        checkLen 
+        while (_char != ':')
+        {
+            recLen = recLen * 10 + _char - '0';
+            _char = msg[index++];
+            checkLen
+        }
+        while (msg[index] == '\r' || msg[index] == '\n')
+        {
+            index++;
+            checkLen
+        }
+        if (len - index >= recLen)
+        {
+            uint8_t *_msg;
+            _msg = (uint8_t *)malloc(recLen);
+            for (size_t j = 0; j < recLen; j++)
+            {
+                _msg[j] = msg[j + index];
+            }
+            _msg[recLen] = '\0';            
+            gprs->client[clientChannel].handleRec(_msg);
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        return 1;
+    }
 }
 #define check(C) rec_buf[i++]==C
 #define endCheck (rec_buf[rec_len-2]=='\r'&&rec_buf[rec_len-1]=='\n')
@@ -198,8 +843,8 @@ uint8_t handleReceive(uint8_t *msg){
         return msg;\
     }
 
-uint8_t* clearBuf(uint8_t *rec_buf,uint32_t *recLen,uint8_t *type){
-    uint32_t rec_len=*recLen;
+
+uint8_t* gprs_readBuf(uint8_t *rec_buf,uint16_t rec_len,uint8_t *type){
     uint8_t *msg;
     int32_t i=0;
     *type = NOState;
@@ -262,21 +907,17 @@ uint8_t* clearBuf(uint8_t *rec_buf,uint32_t *recLen,uint8_t *type){
     else if(startWith(AT_request_initiation_for_data_sending_Commond,rec_buf)){
         
         *type = AT_request_initiation_for_data_sending; 
-        i=_len_(AT_request_initiation_for_data_sending);
+        i = 0;
         msg = (uint8_t *)malloc(rec_len-i);
         for (size_t j = i; j < rec_len; j++) { 
             msg[j-i]= rec_buf[j]; 
         }
         msg[rec_len-i] = '\0';
         return msg;
-    }else if(endWith("SEND FAIL\r\n",rec_buf)){
+    }else if(endWithWithLen("SEND FAIL\r\n", rec_buf, rec_len)){
         *type = AT_request_data_sending_error; 
         msg = (uint8_t *)malloc(1);
-        msg[0] = 'e\0';
-        return msg;
-    }else if(endWith(", CONNECT OK\r\n",rec_buf)){
-        *type = AT_network_connnect;
-        msg = (uint8_t *)malloc(1);
+        msg[0] = 'e';
         for (size_t i = 0; i < rec_len; i++)
         {
             if(rec_buf[i]>='0'&&rec_buf[i]<='9'){
@@ -285,7 +926,40 @@ uint8_t* clearBuf(uint8_t *rec_buf,uint32_t *recLen,uint8_t *type){
             }
         }
         return msg;
-    }else if(endWith(", CLOSED\r",rec_buf)||endWith(", CLOSED\r\r\n",rec_buf)||endWith(", CLOSED\r\n",rec_buf)){
+    }else if(endWithWithLen("SEND OK\r\n",rec_buf, rec_len)||endWithWithLen("SEND OK\r\n\r\n",rec_buf, rec_len)){
+        *type = AT_request_data_sending_success; 
+        msg = (uint8_t *)malloc(rec_len);
+        for (size_t j = 0; j < rec_len; j++) { 
+            msg[j]= rec_buf[j]; 
+        }
+        msg[rec_len] = '\0';
+        return msg;
+    }else if(endWithWithLen(", CONNECT OK\r\n",rec_buf, rec_len)){
+        *type = AT_network_connnect;
+        msg = (uint8_t *)malloc(1);
+        msg[0] = 'e';
+        for (size_t i = 0; i < rec_len; i++)
+        {
+            if(rec_buf[i]>='0'&&rec_buf[i]<='9'){
+                msg[0] = rec_buf[i];
+                break;
+            }
+        }
+        return msg;
+    }else if(endWithWithLen(", CONNECT FAIL\r\n",rec_buf, rec_len)){
+        *type = AT_network_fail;
+        msg = (uint8_t *)malloc(1);
+        msg[0] = 'e';
+        for (size_t i = 0; i < rec_len; i++)
+        {
+            if(rec_buf[i]>='0'&&rec_buf[i]<='9'){
+                msg[0] = rec_buf[i];
+                break;
+            }
+        }
+        return msg;
+    }
+    else if(endWithWithLen(", CLOSED\r",rec_buf, rec_len)||endWithWithLen(", CLOSED\r\r\n",rec_buf, rec_len)||endWithWithLen(", CLOSED\r\n",rec_buf, rec_len)){
         *type = AT_network_fail;
         msg = (uint8_t *)malloc(1);
         for (size_t i = 0; i < rec_len; i++)
@@ -304,41 +978,6 @@ uint8_t* clearBuf(uint8_t *rec_buf,uint32_t *recLen,uint8_t *type){
 
     else
         return "";
-    /*
-    if(startWith(AT_reply_message(AT),rec_buf)&&endCheck){
-        *type = AT;
-        i=sizeof("AT\r\r\n");
-        for (size_t j = i; j < rec_len-2; j++)
-        {
-            msg[j-i]= rec_buf[j];
-        }
-        return;
-    }else if(startWith("AT+CFUN=0\r\r\n",rec_buf)&&endCheck){
-        *type = AT_close;
-        i=sizeof("AT+CFUN=0\r\r\n");
-        for (size_t j = i; j < rec_len-2; j++)
-        {
-            msg[j-i]= rec_buf[j];
-        }
-        return;
-    }else if(startWith("AT+CFUN=1\r\r\n",rec_buf)&&endCheck){
-        *type = AT_open;
-        i=sizeof("AT+CFUN=1\r\r\n");
-        for (size_t j = i; j < rec_len-2; j++)
-        {
-            msg[j-i]= rec_buf[j];
-        }
-        return;
-    }else if(startWith("AT+CSQ\r\r\n",rec_buf)&&endCheck){
-        *type = AT_open;
-        i=sizeof("AT+CSQ\r\r\n");
-        for (size_t j = i; j < rec_len-2; j++)
-        {
-            msg[j-i]= rec_buf[j];
-        }
-        return;
-    }
-    */
 }
 
 #define caseATSend(AT) case AT:\
@@ -354,6 +993,7 @@ uint8_t* AT_send_message(uint8_t AT_CPOMMOND){
         caseATSend(AT_close);
         caseATSend(AT_open);
         caseATSend(AT_reset_IP);
+        caseATSend(AT_ping);
         caseATSend(AT_check_if_connected);
         caseATSend(AT_detach_from_GPRS);
         caseATSend(AT_attach_to_GPRS);
@@ -399,7 +1039,7 @@ uint8_t* AT_reply_message(uint8_t AT_CPOMMOND){
     return "error";
 }
 
-uint8_t* AT_Ping(uint8_t* url){
+uint8_t* AT_ANP(uint8_t* url){
     uint16_t len = _len_(url);
     uint8_t *pingStr;
     pingStr=malloc(sizeof("AT+CSTT=\"\"\r\n")+len);
@@ -429,13 +1069,57 @@ uint8_t* start_multi_channel_connection(uint8_t channel,uint8_t *netWorkType,uin
      pingStr[index] = '\0';
     return pingStr;
 }
-
+// AT+CIPSTART=0,"TCP",server.delinapi.top,28888
 void sendATCommond(uint8_t AT_CPOMMOND,uart_inst_t *uart){
     sendWithNoReply++;
     uint8_t* AT_msg=AT_send_message(AT_CPOMMOND); 
     sendATCommondMsg(AT_msg,uart);
     // LIST_InsertHeadNode(&listHead, HAL_GetTick(), AT_msg, AT_CPOMMOND, 0);
 }
+
+uint8_t SIM_send(Client *client, GPRS_t *gprs, uint8_t *data, uart_inst_t *uart)
+{
+    uint16_t sendBufLen = _len_(data);
+    uint8_t header[19];
+    uint16_t headerBufferIndex = 0;
+    uint8_t type = 0;
+    uint8_t *msg;
+
+    sendTCPHeader(header,client->channel, sendBufLen, &headerBufferIndex);
+    client->sendState = sendIdle;
+    gprs_flush(gprs);
+    uart_write_blocking(uart, header, headerBufferIndex);
+    sleep_ms(2000);
+    msg = gprs_readBuf(gprs->rec, gprs->recLen, &type);
+    AT_Message_Handle(gprs, type, msg);
+    gprs_flush(gprs);
+    if (strcmp("", msg))
+    {
+        free(msg);
+    }
+    if (client->sendState == sendError)
+    {
+        client->connectState = closed;
+        return 0;
+    }
+    sleep_ms(1000);
+    uart_write_blocking(uart, data, sendBufLen);
+    sleep_ms(4000);
+    msg = gprs_readBuf(gprs->rec, gprs->recLen, &type);
+    AT_Message_Handle(gprs, type, msg);
+    gprs_flush(gprs);
+    if (strcmp("", msg))
+    {
+        free(msg);
+    }
+    if (client->sendState == sendError)
+    {
+        client->connectState = closed;
+        return 0;
+    }
+    return 1;
+}
+
 
 void sendATCommondMsg(uint8_t* AT_msg,uart_inst_t *uart){
     while (handleState == Handle_busy)
@@ -563,9 +1247,12 @@ uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg) {
     }
     return 0;
 }
-
 uint8_t containKeyWords(uint8_t* key, uint8_t* msg) {
     uint32_t len = _len_(msg);
+    return containKeyWordsWithLen(key, msg, len);
+}
+
+uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len) {
     uint32_t keyLen = _len_(key);
     uint32_t startIndex = 0;
     uint32_t endIndex = 0;
@@ -573,6 +1260,11 @@ uint8_t containKeyWords(uint8_t* key, uint8_t* msg) {
     uint32_t j = 0;
     uint16_t msg_skip_spaceShift = 0;
     uint16_t key_skip_spaceShift = 0;
+    uint16_t last_msg_skip_spaceShift = 0;
+    uint16_t last_key_skip_spaceShift = 0;
+    uint32_t last_j = 0;
+    uint32_t last_startIndex=0;
+    uint8_t last_having = 0;
     for (size_t i = 0; i < len; i++)
     {
         if ((msg[i] == '\r' || msg[i] == '\n') && newKey) {
@@ -597,11 +1289,36 @@ uint8_t containKeyWords(uint8_t* key, uint8_t* msg) {
                         startIndex++;
                     }
                     else {
-                        break;
+                        if (j + msg_skip_spaceShift == endIndex && j - startIndex + key_skip_spaceShift == keyLen)
+                        {
+                            if(endIndex-keyLen >= 0){
+                                return endIndex-keyLen + 1;
+                            }
+                            return 1;
+                        }else{
+                            msg_skip_spaceShift = last_msg_skip_spaceShift;
+                            key_skip_spaceShift = last_key_skip_spaceShift;
+                            j = last_j;
+                            startIndex = last_startIndex;
+                            startIndex++;
+                            last_having = 0;
+                        }
                     }
+                }else{
+                    if(!last_having){
+                        last_msg_skip_spaceShift = msg_skip_spaceShift;
+                        last_key_skip_spaceShift = key_skip_spaceShift;
+                        last_j = j;
+                        last_startIndex = startIndex;
+                        last_having = 1;
+                    }
+
                 }
             }
             if (j + msg_skip_spaceShift == endIndex && j - startIndex + key_skip_spaceShift == keyLen) {
+                if(endIndex-keyLen >= 0){
+                    return endIndex-keyLen + 1;
+                }
                 return 1;
             }
         }
@@ -636,6 +1353,9 @@ uint8_t containKeyWords(uint8_t* key, uint8_t* msg) {
                     }
                 }
                 if (j + msg_skip_spaceShift == endIndex&& j - startIndex + key_skip_spaceShift == keyLen) {
+                    if(endIndex-keyLen >= 0){
+                        return endIndex-keyLen + 1;
+                    }
                     return 1;
                 }
             }
