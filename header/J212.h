@@ -88,6 +88,7 @@ uint8_t Match_Device_Type(uint8_t Ux);
 uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
 uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
 uint8_t uploadDeviceHours(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
+uint8_t uploadDeviceHoursWithData(deviceDatas_t *deviceDatas, datetime_t *currentDate, uart_inst_t *uart, uint8_t uart_en_pin);
 
 void updateDataTime();
 uint8_t handleUploadInfoRecBuf(uint8_t* rec_buf,uint32_t rec_len);

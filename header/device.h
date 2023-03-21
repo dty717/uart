@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "hardware/uart.h"
+#include "pico/util/datetime.h"
 #include "modbus.h"
 #include "modbusRTU.h"
 #include "../config.h"
@@ -51,7 +52,16 @@ typedef enum
     commonMinuteSecondAddr,
 } commonDeviceDataAddr; // uint 16
 
-#define UT_REGISTERS_ADDRESS 0x57
+#define PLC_DATE_REGISTERS_ADDRESS 0x19A
+
+#ifdef UART_HUBEI
+    #define UT_REGISTERS_ADDRESS 0x7D0
+#elif defined(UART_TEST) 
+    #define UT_REGISTERS_ADDRESS 0x7D0
+#else
+    #define UT_REGISTERS_ADDRESS 0x57
+#endif
+
 #define LED_POOL_ADDRESS 0x10C0
 #define LED_VALUE_ADDRESS 0x5042
 
@@ -64,7 +74,7 @@ typedef enum
     #define COMMON_DEVICE_CODE 11
     #define COMMON_MN_LEN     14
 #elif defined(UART_SUZHOU) && !defined(usingMultiDevice)
-    #define COMMON_DEVICE_MN "0000000D1000001000000012"
+    #define COMMON_DEVICE_MN "0000000D1000001000000014"
     #define COMMON_DEVICE_CODE 21003
     #define COMMON_MN_LEN     24
 #else
@@ -94,6 +104,17 @@ typedef struct pollution {
     uint32_t time;
 } pollution_t;
 
+#define maxValueNums 100
+
+typedef struct pollutions
+{
+    uint8_t *code;
+    double data[maxValueNums];
+    int dataIndex;
+    uint16_t state;
+    uint32_t time;
+} pollutions_t;
+
 typedef struct deviceData {
     /* Slave address */
     uint16_t poolNums;
@@ -112,11 +133,29 @@ typedef struct deviceData {
 	uint8_t second;
 } deviceData_t;
 
+typedef struct deviceDatas {
+    /* Socket or file descriptor */
+    uint16_t pollutionNums;
+    uint8_t MN_len;
+    uint8_t *MN;
+    uint8_t *PW;
+    uint8_t poolNum;
+    pollutions_t *pollutions;
+    uint8_t year;
+	uint8_t month;
+	uint8_t date;
+	uint8_t hour;
+	uint8_t minute;
+	uint8_t second;
+} deviceDatas_t;
+
+
 uint8_t *pollutionCode(uint16_t code);
 
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData);
 response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData);
 response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData);
+response_type_t ask_device_rtc(modbus_t *ctx, datetime_t *currentDate);
 
 deviceData_t* new_deviceData(uint16_t poolNums,uint16_t pollutionNums,uint8_t MN_len);
 void setPollutionNums(deviceData_t *deviceData,uint16_t pollutionNums);

@@ -236,7 +236,6 @@ bool repeating_timer_callback(struct repeating_timer *t)
         floatToByteArray(datas[i], arrayVal);
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i] = arrayVal[0] + (arrayVal[1] << 8);
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionStateAddr + PollutionDataLen * i] = 1;
     }
 

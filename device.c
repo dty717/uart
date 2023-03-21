@@ -1,12 +1,15 @@
+#include "pico/stdlib.h"
+#include "pico/types.h"
+#include "hardware/flash.h"
 
 #include "header/device.h"
 #include "header/crc.h"
 #include "header/J212.h"
 #include "header/common/handler.h"
-#include "config.h"
-#include "pico/stdlib.h"
-#include "hardware/flash.h"
 #include "header/flash.h"
+
+#include "config.h"
+
 
 uint8_t *flashData;
 
@@ -516,6 +519,52 @@ addNewCommonDate:
 	free(tab_rp_registers);
 	tab_rp_registers = NULL;
 	return newData;
+}
+
+response_type_t ask_device_rtc(modbus_t *ctx, datetime_t *currentDate)
+{
+	int i = 0;
+	uint16_t *tab_rp_registers = NULL;
+
+	tab_rp_registers = (uint16_t *)malloc(6 * sizeof(uint16_t));
+	modbus_set_slave(ctx, deviceAddr);
+	int rc = 0;
+	rc = modbus_read_registers(ctx, PLC_DATE_REGISTERS_ADDRESS,
+							   6, tab_rp_registers);
+
+	if (rc > 0)
+	{
+		// tab_rp_registers
+		currentDate->year = tab_rp_registers[0];
+		#ifdef UART_HUBEI
+			currentDate->month = tab_rp_registers[1];
+			currentDate->day = tab_rp_registers[2];
+			currentDate->hour = tab_rp_registers[3];
+			currentDate->min = tab_rp_registers[4];
+			currentDate->sec = tab_rp_registers[5];
+		#else
+			currentDate->month = hexToInt(tab_rp_registers[1]);
+			currentDate->day = hexToInt(tab_rp_registers[2]);
+			currentDate->hour = hexToInt(tab_rp_registers[3]);
+			currentDate->min = hexToInt(tab_rp_registers[4]);
+			currentDate->sec = hexToInt(tab_rp_registers[5]);
+		#endif
+		if (ctx->debug) {
+			printf("DataTime:%d-%d-%d %d:%d:%d\r\n",
+				currentDate->year,
+				currentDate->month,
+				currentDate->day,
+				currentDate->hour,
+				currentDate->min,
+				currentDate->sec);		
+		}
+		free(tab_rp_registers);
+		tab_rp_registers = NULL;
+		return normal;
+	}
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
+	return noResponse;
 }
 
 response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)

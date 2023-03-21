@@ -33,6 +33,9 @@
 
 #ifdef UART_TEST
 
+#define MODBUS_RTU_MAX_ADU_LENGTH 4096
+
+
 char datetime_buf[256];
 char *datetime_str = &datetime_buf[0];
 
@@ -40,10 +43,10 @@ char *datetime_str = &datetime_buf[0];
 datetime_t datetimeNow = {
     .year = 2022,
     .month = 07,
-    .day = 5,
-    .dotw = 2, // 0 is Sunday, so 5 is Friday
-    .hour = 9,
-    .min = 50,
+    .day = 20,
+    .dotw = 3, // 0 is Sunday, so 5 is Friday
+    .hour = 16,
+    .min = 20,
     .sec = 00
 };
 
@@ -127,37 +130,67 @@ void core1_entry()
             case '\r':
             case '\n':
                 break;
+            case 'z':
+                rtc_get_datetime(&datetimeNow);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + YearMonthAddr] = (intToHex(datetimeNow.year - 2000) << 8) + intToHex(datetimeNow.month);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr] = (intToHex(datetimeNow.day) << 8) + intToHex(datetimeNow.hour);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = (intToHex(rand() % 15 + 10) << 8) + intToHex(rand() % 60);
+
+                uint16_t codes2[] = {1009, 21011, 1010, 21003, 1018, 1014};
+                float datas2[] = {2.2, 28.2, 301.8, 3101.1, 5101.1, 3101.9};
+
+                for (i = 0; i < mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionNumsAddr]; i++)
+                {
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionCodeAddr + PollutionDataLen * i] = codes2[i];
+                    uint8_t *arrayVal;
+                    arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
+                    floatToByteArray(datas2[i], arrayVal);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i] = arrayVal[2] + (arrayVal[3] << 8);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[0] + (arrayVal[1] << 8);
+                    if (i > 2)
+                    {
+                        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionStateAddr + PollutionDataLen * i] = 0;
+                    }
+                }
+                printf("poolNum:%d\r\n",poolNum);
+                break;
             case 'c':
 
-                poolNum = mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr];
-                poolNum++;
-                if(poolNum>mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumsAddr]){
-                    poolNum = 1;
-                }
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr] = poolNum;
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr] = 'A'+poolNum - 1 + ('C' << 8);
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 1] = 'A'+poolNum - 1 + ('C' << 8);
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 2] = 'A'+poolNum - 1 + ('C' << 8);
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 3] = 'A'+poolNum - 1 + ('C' << 8);
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 4] = 'A'+poolNum - 1 + ('C' << 8);
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 5] = 'A'+poolNum - 1 + ('C' << 8);
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 6] = 'D' + ('0' << 8);
+                // poolNum = mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr];
+                // poolNum++;
+                // if(poolNum>mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumsAddr]){
+                //     poolNum = 1;
+                // }
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr] = poolNum;
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr] = 'A'+poolNum - 1 + ('C' << 8);
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 1] = 'A'+poolNum - 1 + ('C' << 8);
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 2] = 'A'+poolNum - 1 + ('C' << 8);
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 3] = 'A'+poolNum - 1 + ('C' << 8);
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 4] = 'A'+poolNum - 1 + ('C' << 8);
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 5] = 'A'+poolNum - 1 + ('C' << 8);
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MNAddr + 6] = 'D' + ('0' << 8);
+
+                rtc_get_datetime(&datetimeNow);
+                // datetimeNow.year
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + YearMonthAddr] = (intToHex(datetimeNow.year - 2000) << 8) + intToHex(datetimeNow.month);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr] = (intToHex(datetimeNow.day) << 8) + intToHex(datetimeNow.hour);
+                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = (intToHex(rand() % 15 + 10) << 8) + intToHex(rand() % 60);
 
                 // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + YearMonthAddr] = 0x2110;
-                mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr]++;
+                // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + DateHourAddr]++;
                 // mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = 0x1121;
 
-                uint16_t codes[] = {21001, 21011, 1018, 1019};
-                float datas[] = {2100.1, 2101.1, 101.8, 101.9};
+                uint16_t codes[] = {1009, 21011, 1010, 21003, 1018, 1014};
+                float datas[] = {8.2, 78.2, 101.8, 2101.1, 4101.1, 5101.9};
+
                 for (i = 0; i < mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionNumsAddr]; i++)
                 {
                     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionCodeAddr + PollutionDataLen * i] = codes[i];
                     uint8_t *arrayVal;
                     arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
-                    floatToByteArray(datas[i]+poolNum - 1, arrayVal);
-                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i] = arrayVal[0] + (arrayVal[1] << 8);
-                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
-                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+                    floatToByteArray(datas[i], arrayVal);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i] = arrayVal[2] + (arrayVal[3] << 8);
+                    mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[0] + (arrayVal[1] << 8);
                     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS+pollutionStateAddr + PollutionDataLen * i] = 1;
                 }
                 printf("poolNum:%d\r\n",poolNum);
@@ -183,7 +216,7 @@ void on_uart0_rx() {
     while (uart_is_readable(uart0)) {
         uint8_t ch = uart_getc(uart0);
         // Can we send it back?
-        printf("(%.2X)", ch);
+        // printf("(%.2X)", ch);
         modbus_add_RXData(ctxServer,ch);
         if (uart_is_writable(uart0)) {
             // Change it slightly first!
@@ -198,7 +231,7 @@ void on_uart1_rx() {
     while (uart_is_readable(uart1)) {
         uint8_t ch = uart_getc(uart1);
         // Can we send it back?
-        // printf("(%.2X)", ch);
+        printf("%c", ch);
         modbus_add_RXData(ctx,ch);
         if (uart_is_writable(uart1)) {
             // Change it slightly first!
@@ -235,9 +268,8 @@ bool repeating_timer_callback(struct repeating_timer *t)
         uint8_t *arrayVal;
         arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
         floatToByteArray(datas[i], arrayVal);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i] = arrayVal[0] + (arrayVal[1] << 8);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i] = arrayVal[2] + (arrayVal[3] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[0] + (arrayVal[1] << 8);
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionStateAddr + PollutionDataLen * i] = 1;
     }
 
@@ -272,7 +304,6 @@ int main()
 
     stdio_init_all();    
 
-
     // Start the RTC
     rtc_init();
     rtc_set_datetime(&datetimeNow);
@@ -300,7 +331,7 @@ int main()
     gpio_put(uart1_EN, 0);
 
     uart_init(uart0, BAUD_RATE);
-    uart_init(uart1, BAUD_RATE);
+    uart_init(uart1, BAUD_RATE2);
 
     // Set the TX and RX pins by using the function select on the GPIO
     // Set datasheet for more information on function select
@@ -440,6 +471,14 @@ int main()
     //     mb_mapping->tab_registers[i/2] = i;
     //     // (flashData[i]<<8)+flashData[i+1];
     // }
+    
+    mb_mapping->tab_registers[PLC_DATE_REGISTERS_ADDRESS] = datetimeNow.year;
+    mb_mapping->tab_registers[PLC_DATE_REGISTERS_ADDRESS + 1] = intToHex(datetimeNow.month);
+    mb_mapping->tab_registers[PLC_DATE_REGISTERS_ADDRESS + 2] = intToHex(datetimeNow.day);
+    mb_mapping->tab_registers[PLC_DATE_REGISTERS_ADDRESS + 3] = intToHex(datetimeNow.hour);
+    mb_mapping->tab_registers[PLC_DATE_REGISTERS_ADDRESS + 4] = intToHex(datetimeNow.min);
+    mb_mapping->tab_registers[PLC_DATE_REGISTERS_ADDRESS + 5] = intToHex(datetimeNow.sec);
+
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumsAddr] = 1;
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + poolNumAddr] = 1;
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionNumsAddr] = 6;
@@ -463,16 +502,15 @@ int main()
     mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + MinuteSecondAddr] = (intToHex(datetimeNow.min) << 8) + intToHex(datetimeNow.sec);
 
     uint16_t codes[] = {1009, 21011, 1010, 21003, 1018, 1014};
-    float datas[] = {2100.1, 2101.1, 101.8, 2101.1, 101.8, 101.9};
+    float datas[] = {2.3, 22.1, 301.8, 1131, 3401.9, 6201.9};
     for (i = 0; i < mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionNumsAddr]; i++)
     {
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionCodeAddr + PollutionDataLen * i] = codes[i];
         uint8_t *arrayVal;
         arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
         floatToByteArray(datas[i], arrayVal);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i] = arrayVal[0] + (arrayVal[1] << 8);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
-        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[2] + (arrayVal[3] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i] = arrayVal[2] + (arrayVal[3] << 8);
+        mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionDataAddr + PollutionDataLen * i + 1] = arrayVal[0] + (arrayVal[1] << 8);
         mb_mapping->tab_registers[UT_REGISTERS_ADDRESS + pollutionStateAddr + PollutionDataLen * i] = 1;
     }
 
@@ -494,17 +532,17 @@ int main()
         .min   = 20,
         .sec   = 00
     };
-    rtc_set_alarm(&alarm, &repeating_timer_callback);
+    // rtc_set_alarm(&alarm, &repeating_timer_callback);
 
     // This example dispatches arbitrary functions to run on the second core
     // To do this we run a dispatcher on the second core that accepts a function
     // pointer and runs it
-    // multicore_launch_core1(core1_entry);
+    multicore_launch_core1(core1_entry);
     
     uint8_t getTimes = 0;
     while (true)
     {
-        printf("\r\nuart_test\r\n");
+        // printf("\r\nuart_test\r\n");
         
         gpio_put(LED1,getTimes&1);
         gpio_put(LED2,(getTimes>>1)&1);

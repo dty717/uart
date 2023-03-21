@@ -53,9 +53,9 @@
                             #ifndef UART
 // #define UART_TEST
                             #ifndef UART_TEST
-#define UART_TEST_GPRS
+// #define UART_TEST_GPRS
                             #ifndef UART_TEST_GPRS
-#define UART_TEST2
+// #define UART_TEST2
                             #ifndef UART_TEST2
 // #define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
@@ -78,7 +78,7 @@
 #ifdef UART_SUZHOU
     #define remainingPollutionNums 0
     
-    // #define usingMultiDevice
+    #define usingMultiDevice
 
     #ifdef usingMultiDevice
         // #define usingLEDScreen
@@ -92,9 +92,8 @@
         #define remainingPollutionNums 0
     #endif
 
-
 #elif defined(UART_HUBEI)
-    #define remainingPollutionNums 2
+    #define remainingPollutionNums 0
 #else
     #define remainingPollutionNums 0
 #endif

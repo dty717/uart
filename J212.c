@@ -1,3 +1,4 @@
+#include "pico/types.h"
 #include "header/J212.h"
 #include "header/crc.h"
 #include "header/device.h"
@@ -19,6 +20,9 @@
 #endif
 
 uint8_t hourDataValue[32];
+uint8_t hourMaxDataValue[32];
+uint8_t hourMinDataValue[32];
+uint8_t hourAvgDataValue[32];
 
 void assignPW(uint8_t *PW){
     uploadDevice_buf[38]=PW[0];
@@ -294,11 +298,12 @@ uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_
     }
     endUpload();
     gpio_put(uart_en_pin, 1);
-    sleep_ms(20);
+    sleep_us(50);
     uploadDeviceBuffer[sendBufferIndex] = '\0';
     uart_puts(uart, uploadDeviceBuffer);
     // uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
-    sleep_ms(5);
+    sleep_us(10152 * 1000 / BAUD_RATE2 * (sendBufferIndex + 1));
+    sleep_ms(60);
     #ifndef UART_JIANGNING
     gpio_put(uart_en_pin, 0);
     #endif
@@ -413,10 +418,10 @@ uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t u
     }
     endUpload();
     gpio_put(uart_en_pin, 1);
-    sleep_ms(20);
+    sleep_us(50);
     uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
     printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
-    sleep_ms(5);
+    sleep_us(10152 * 1000 / BAUD_RATE2 * (sendBufferIndex + 1));
     #ifndef UART_JIANGNING
     gpio_put(uart_en_pin, 0);
     #endif
@@ -448,34 +453,14 @@ uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t u
         return 0;
 }
 
+uint8_t uploadDeviceHours(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin)
+{
+    int waitTimes = 0;
+    uint8_t *QN = assignTimeDecimalMicroSec(deviceData->year, deviceData->month, deviceData->date, deviceData->hour, deviceData->minute, deviceData->second);
+    uint16_t index = assignInit(QN, deviceData->PW, "21", deviceData->MN, deviceData->MN_len, getHoursPollutionDataCMD);
 
-uint8_t uploadDeviceHours(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin){
-
-        // #if usingSIM
-        //     if(uploadInitState!=1){
-        //         resetWithBit(upload_device_info_priority);
-        //         return uploadInitState;
-        //     }
-        // #endif
-
-    // int needDebug = bits;
-    // if(needDebug!=12){
-    //     resetWithBit(upload_device_info_priority);
-    //     return 1;
-    // }
-    int waitTimes=0;
-
-    uint8_t *QN = assignTimeDecimalMicroSec(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second);
-    
-    uint16_t index = assignInit(QN,deviceData->PW,"21",deviceData->MN,deviceData->MN_len, getHoursPollutionDataCMD);
-
-    appendArray("DataTime=",uploadDevice_buf,&index);
-	assignTime(deviceData->year,deviceData->month,deviceData->date,deviceData->hour,deviceData->minute,deviceData->second, uploadDevice_buf,&index);
-    // addDeviceData(U1);
-    // addDeviceData(U2);
-    // addDeviceData(U3);
-    // addDeviceData(U4);
-    // addDeviceData(U5);
+    appendArray("DataTime=", uploadDevice_buf, &index);
+    assignTime(deviceData->year, deviceData->month, deviceData->date, deviceData->hour, deviceData->minute, deviceData->second, uploadDevice_buf, &index);
 
     uint16_t dataIndex = 0;
 
@@ -487,27 +472,27 @@ uint8_t uploadDeviceHours(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uar
             #ifdef UART_HUBEI
                 if (deviceData->pollutions[i].code == "w01001")
                 {
-                    deviceData->pollutions[i].data = (int)(deviceData->pollutions[i].data + 0.5/1) + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    deviceData->pollutions[i].data = (int)(deviceData->pollutions[i].data + 0.5 / 1) + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 0);
                 }
                 else if (deviceData->pollutions[i].code == "w21003")
                 {
-                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5 / 100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 2);
                 }
                 else if (deviceData->pollutions[i].code == "w21011")
                 {
-                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/1000) * 1000) / 1000.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5 / 1000) * 1000) / 1000.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 3);
                 }
                 else if (deviceData->pollutions[i].code == "w01003")
                 {
-                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5 / 100) * 100) / 100.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 2);
                 }
                 else
                 {
-                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5/10) * 10) / 10.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
+                    deviceData->pollutions[i].data = (int)((deviceData->pollutions[i].data + 0.5 / 10) * 10) / 10.0 + (deviceData->pollutions[i].data > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(deviceData->pollutions[i].data, hourDataValue, &dataIndex, 1);
                 }
             #else
@@ -538,42 +523,177 @@ uint8_t uploadDeviceHours(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uar
     }
     endUpload();
     gpio_put(uart_en_pin, 1);
-    sleep_ms(20);
+    sleep_us(50);
     uploadDeviceBuffer[sendBufferIndex] = '\0';
     uart_puts(uart, uploadDeviceBuffer);
     // uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
-    sleep_ms(5);
+    sleep_us(10152 * 1000 / BAUD_RATE2 * (sendBufferIndex + 1));
     #ifndef UART_JIANGNING
-    gpio_put(uart_en_pin, 0);
+        gpio_put(uart_en_pin, 0);
     #endif
     // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
-
     free(QN);
     QN = NULL;
-    // Enable_Ux(U6,_send);
-    // if(usingSIM){
-    //     if(!SIM_send(sendBufferIndex)){
-    //         goto errorSend; 
-    //     }
-    // }else{
-    //     HAL_UART_Transmit(&huart6, uploadDeviceBuffer,sendBufferIndex,2000);
-    // }
-    // osDelay(10);
-    // Enable_Ux(U6,_rec);
-    
-	// resetWithBit(upload_device_info_priority);
-    // return 1;
-    // errorSend:
-    //     #if usingSIM
-    //         uploadInitState = 0;
-    //     #endif
-    //     resetWithBit(upload_device_info_priority);
-    //     #if usingSIM
-    //         return uploadInitState;
-    //     #endif
-        return 0;
+    return 0;
 }
 
+// double pollutionsValues[12][240];
+// int pollutionsValuesIndex[12];
+
+double getMaxValue(double *pollutionsValues, int pollutionsValuesIndex)
+{
+    double maxPollutionsValue = pollutionsValues[0];
+    for (size_t i = 1; i < pollutionsValuesIndex; i++)
+    {
+        if (maxPollutionsValue < pollutionsValues[i])
+        {
+            maxPollutionsValue = pollutionsValues[i];
+        }
+    }
+    return maxPollutionsValue;
+}
+
+double getMinValue(double *pollutionsValues, int pollutionsValuesIndex)
+{
+    double minPollutionsValue = pollutionsValues[0];
+    for (size_t i = 1; i < pollutionsValuesIndex; i++)
+    {
+        if (minPollutionsValue > pollutionsValues[i])
+        {
+            minPollutionsValue = pollutionsValues[i];
+        }
+    }
+    return minPollutionsValue;
+}
+
+double getAvgValue(double *pollutionsValues, int pollutionsValuesIndex)
+{
+    double avgPollutionsValue = 0;
+    for (size_t i = 0; i < pollutionsValuesIndex; i++)
+    {
+        avgPollutionsValue += pollutionsValues[i];
+    }
+    return avgPollutionsValue / pollutionsValuesIndex;
+}
+
+uint8_t uploadDeviceHoursWithData(deviceDatas_t *deviceDatas, datetime_t *currentDate, uart_inst_t *uart, uint8_t uart_en_pin)
+{
+    int waitTimes = 0;
+    double pollutionsValues[12][120];
+
+    uint8_t *QN = assignTimeDecimalMicroSec(currentDate->year - 2000, currentDate->month, currentDate->day, currentDate->hour, currentDate->min, currentDate->sec);
+    uint16_t index = assignInit(QN, deviceDatas->PW, "21", deviceDatas->MN, deviceDatas->MN_len, getHoursPollutionDataCMD);
+    appendArray("DataTime=", uploadDevice_buf, &index);
+    assignTime(currentDate->year - 2000, currentDate->month, currentDate->day, currentDate->hour, currentDate->min, currentDate->sec, uploadDevice_buf, &index);
+
+    uint16_t maxDataIndex = 0;
+    uint16_t minDataIndex = 0;
+    uint16_t avgDataIndex = 0;
+    double maxValue = 0;
+    double minValue = 0;
+    double avgValue = 0;
+    for (size_t i = 0; i < deviceDatas->pollutionNums + remainingPollutionNums; i++)
+    {
+        if (deviceDatas->pollutions[i].dataIndex > 0)
+        {
+            maxDataIndex = 0;
+            minDataIndex = 0;
+            avgDataIndex = 0;
+            maxValue = getMaxValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
+            minValue = getMinValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
+            avgValue = getAvgValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
+#ifdef UART_HUBEI
+            if (deviceDatas->pollutions[i].code == "w01001")
+            {
+                    maxValue = (int)(maxValue + 0.5 / 1) + (maxValue > 0 ? 1 : -1) / 100000000.0;
+                    minValue = (int)(minValue + 0.5 / 1) + (minValue > 0 ? 1 : -1) / 100000000.0;
+                    avgValue = (int)(avgValue + 0.5 / 1) + (avgValue > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 0);
+                    appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 0);
+                    appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 0);
+            }
+            else if (deviceDatas->pollutions[i].code == "w21003")
+            {
+                    maxValue = (int)((maxValue + 0.5 / 100) * 100) / 100.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
+                    minValue = (int)((minValue + 0.5 / 100) * 100) / 100.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
+                    avgValue = (int)((avgValue + 0.5 / 100) * 100) / 100.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
+                    appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
+                    appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
+            }
+            else if (deviceDatas->pollutions[i].code == "w21011")
+            {
+                    maxValue = (int)((maxValue + 0.5 / 1000) * 1000) / 1000.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
+                    minValue = (int)((minValue + 0.5 / 1000) * 1000) / 1000.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
+                    avgValue = (int)((avgValue + 0.5 / 1000) * 1000) / 1000.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 3);
+                    appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 3);
+                    appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 3);
+            }
+            else if (deviceDatas->pollutions[i].code == "w01003")
+            {
+                    maxValue = (int)((maxValue + 0.5 / 100) * 100) / 100.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
+                    minValue = (int)((minValue + 0.5 / 100) * 100) / 100.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
+                    avgValue = (int)((avgValue + 0.5 / 100) * 100) / 100.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
+                    appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
+                    appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
+            }
+            else
+            {
+                    maxValue = (int)((maxValue + 0.5 / 10) * 10) / 10.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
+                    minValue = (int)((minValue + 0.5 / 10) * 10) / 10.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
+                    avgValue = (int)((avgValue + 0.5 / 10) * 10) / 10.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
+                    appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 1);
+                    appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 1);
+                    appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 1);
+            }
+#else
+            appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
+            appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
+            appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
+#endif
+            hourMaxDataValue[maxDataIndex] = '\0';
+            hourMinDataValue[minDataIndex] = '\0';
+            hourAvgDataValue[avgDataIndex] = '\0';
+            appendArray(_STRINGIFY(Semicolon), uploadDevice_buf, &index);
+            appendArray(deviceDatas->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_min_str), uploadDevice_buf, &index);
+            appendArray(hourMinDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceDatas->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_avg_str), uploadDevice_buf, &index);
+            appendArray(hourAvgDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceDatas->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(minute_data_max_str), uploadDevice_buf, &index);
+            appendArray(hourMaxDataValue, uploadDevice_buf, &index);
+            appendArray(",", uploadDevice_buf, &index);
+            // appendArray(deviceData->pollutions[i].code, uploadDevice_buf, &index);
+            // appendArray(_STRINGIFY(minute_data_cou_str), uploadDevice_buf, &index);
+            // appendArray(hourDataValue, uploadDevice_buf, &index);
+            // appendArray(",", uploadDevice_buf, &index);
+            appendArray(deviceDatas->pollutions[i].code, uploadDevice_buf, &index);
+            appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
+            appendChar('N', uploadDevice_buf, &index);
+        }
+    }
+    endUpload();
+    gpio_put(uart_en_pin, 1);
+    sleep_us(50);
+    // printf("index:%d\r\n",index);
+    uploadDeviceBuffer[sendBufferIndex] = '\0';
+    uart_puts(uart, uploadDeviceBuffer);
+    // uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
+    sleep_us(10152 * 1000 / BAUD_RATE2 * (sendBufferIndex + 1));
+#if !(defined(UART_JIANGNING) || defined(UART_HUBEI))
+    gpio_put(uart_en_pin, 0);
+#endif
+    // printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
+    free(QN);
+    QN = NULL;
+    return 0;
+}
 
 uint8_t uploadHeartBeat(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin){
 
@@ -657,10 +777,10 @@ uint8_t uploadHeartBeat(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_
     }
     endUpload();
     gpio_put(uart_en_pin, 1);
-    sleep_ms(20);
+    sleep_us(50);
     uart_write_blocking(uart,uploadDeviceBuffer,sendBufferIndex);
     printf("uploadDeviceBuffer:%s\r\n",uploadDeviceBuffer);
-    sleep_ms(5);
+    sleep_us(10152 * 1000 / BAUD_RATE2 * (sendBufferIndex + 1));
     #ifndef UART_JIANGNING
     gpio_put(uart_en_pin, 0);
     #endif

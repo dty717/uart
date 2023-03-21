@@ -1375,7 +1375,7 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
             case _STEP_FUNCTION:
                 if(ctx->slave!=modbus_header(ctx,msg)){
                     if(headerCheckTimes-->0){
-                        printf("go to header\r\n");
+                        // printf("go to header\r\n");
                         msg_length = 0;
                         length_to_read = ctx->backend->header_length + 1;
                         rc = ctx->backend->reRecv(ctx, msg , length_to_read, 1);

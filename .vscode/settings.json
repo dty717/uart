@@ -38,7 +38,8 @@
       "tusb.h": "c",
       "board.h": "c",
       "limits": "c",
-      "gprs.h": "c"
+      "gprs.h": "c",
+      "rtc.h": "c"
     },
     "cortex-debug.armToolchainPath": "C:\\PROGRAM FILES (X86)\\GNU ARM EMBEDDED TOOLCHAIN\\9 2020-Q2-UPDATE\\BIN"
 
