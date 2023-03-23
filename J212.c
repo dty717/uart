@@ -594,65 +594,74 @@ uint8_t uploadDeviceHoursWithData(deviceDatas_t *deviceDatas, datetime_t *curren
     double avgValue = 0;
     for (size_t i = 0; i < deviceDatas->pollutionNums + remainingPollutionNums; i++)
     {
-        if (deviceDatas->pollutions[i].dataIndex > 0)
+        if (deviceDatas->pollutions[i].dataIndex > 0||(deviceDatas->pollutions[i].state != 1 && deviceDatas->pollutions[i].state != 'N'))
         {
             maxDataIndex = 0;
             minDataIndex = 0;
             avgDataIndex = 0;
-            maxValue = getMaxValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
-            minValue = getMinValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
-            avgValue = getAvgValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
-#ifdef UART_HUBEI
-            if (deviceDatas->pollutions[i].code == "w01001")
+            if (deviceDatas->pollutions[i].state != 1 && deviceDatas->pollutions[i].state != 'N')
             {
+                maxValue = 0;
+                minValue = 0;
+                avgValue = 0;
+            }
+            else
+            {
+                maxValue = getMaxValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
+                minValue = getMinValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
+                avgValue = getAvgValue(deviceDatas->pollutions[i].data, deviceDatas->pollutions[i].dataIndex);
+            }
+            #ifdef UART_HUBEI
+                if (deviceDatas->pollutions[i].code == "w01001")
+                {
                     maxValue = (int)(maxValue + 0.5 / 1) + (maxValue > 0 ? 1 : -1) / 100000000.0;
                     minValue = (int)(minValue + 0.5 / 1) + (minValue > 0 ? 1 : -1) / 100000000.0;
                     avgValue = (int)(avgValue + 0.5 / 1) + (avgValue > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 0);
                     appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 0);
                     appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 0);
-            }
-            else if (deviceDatas->pollutions[i].code == "w21003")
-            {
+                }
+                else if (deviceDatas->pollutions[i].code == "w21003")
+                {
                     maxValue = (int)((maxValue + 0.5 / 100) * 100) / 100.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
                     minValue = (int)((minValue + 0.5 / 100) * 100) / 100.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
                     avgValue = (int)((avgValue + 0.5 / 100) * 100) / 100.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
                     appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
                     appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
-            }
-            else if (deviceDatas->pollutions[i].code == "w21011")
-            {
+                }
+                else if (deviceDatas->pollutions[i].code == "w21011")
+                {
                     maxValue = (int)((maxValue + 0.5 / 1000) * 1000) / 1000.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
                     minValue = (int)((minValue + 0.5 / 1000) * 1000) / 1000.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
                     avgValue = (int)((avgValue + 0.5 / 1000) * 1000) / 1000.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 3);
                     appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 3);
                     appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 3);
-            }
-            else if (deviceDatas->pollutions[i].code == "w01003")
-            {
+                }
+                else if (deviceDatas->pollutions[i].code == "w01003")
+                {
                     maxValue = (int)((maxValue + 0.5 / 100) * 100) / 100.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
                     minValue = (int)((minValue + 0.5 / 100) * 100) / 100.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
                     avgValue = (int)((avgValue + 0.5 / 100) * 100) / 100.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
                     appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
                     appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
-            }
-            else
-            {
+                }
+                else
+                {
                     maxValue = (int)((maxValue + 0.5 / 10) * 10) / 10.0 + (maxValue > 0 ? 1 : -1) / 100000000.0;
                     minValue = (int)((minValue + 0.5 / 10) * 10) / 10.0 + (minValue > 0 ? 1 : -1) / 100000000.0;
                     avgValue = (int)((avgValue + 0.5 / 10) * 10) / 10.0 + (avgValue > 0 ? 1 : -1) / 100000000.0;
                     appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 1);
                     appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 1);
                     appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 1);
-            }
-#else
-            appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
-            appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
-            appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
-#endif
+                }
+            #else
+                appendFloatToStrWithLen(maxValue, hourMaxDataValue, &maxDataIndex, 2);
+                appendFloatToStrWithLen(minValue, hourMinDataValue, &minDataIndex, 2);
+                appendFloatToStrWithLen(avgValue, hourAvgDataValue, &avgDataIndex, 2);
+            #endif
             hourMaxDataValue[maxDataIndex] = '\0';
             hourMinDataValue[minDataIndex] = '\0';
             hourAvgDataValue[avgDataIndex] = '\0';
@@ -675,7 +684,18 @@ uint8_t uploadDeviceHoursWithData(deviceDatas_t *deviceDatas, datetime_t *curren
             // appendArray(",", uploadDevice_buf, &index);
             appendArray(deviceDatas->pollutions[i].code, uploadDevice_buf, &index);
             appendArray(_STRINGIFY(device_running_start_str), uploadDevice_buf, &index);
-            appendChar('N', uploadDevice_buf, &index);
+            #ifdef UART_HUBEI
+                if (deviceDatas->pollutions[i].state == 1 || deviceDatas->pollutions[i].state == 'N')
+                {
+                    appendChar('N', uploadDevice_buf, &index);
+                }
+                else
+                {
+                    appendChar((uint8_t)deviceDatas->pollutions[i].state, uploadDevice_buf, &index);
+                }
+            #else
+                appendChar('N', uploadDevice_buf, &index);
+            #endif
         }
     }
     endUpload();

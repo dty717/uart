@@ -607,15 +607,35 @@ response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData)
 		}
 		else
 		{
-			if ((*deviceData)->year != hexToInt(tab_rp_registers[YearMonthAddr] >> 8) ||
-				(*deviceData)->month != hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF) ||
-				(*deviceData)->date != hexToInt(tab_rp_registers[DateHourAddr] >> 8) ||
-				(*deviceData)->hour != hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF) ||
-				(*deviceData)->minute != hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8) ||
-				(*deviceData)->second != hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF))
-			{
-				goto checkPollutionNums;
-			}
+			#ifdef UART_HUBEI
+				if ((*deviceData)->year != hexToInt(tab_rp_registers[YearMonthAddr] >> 8) ||
+					(*deviceData)->month != hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF) ||
+					(*deviceData)->date != hexToInt(tab_rp_registers[DateHourAddr] >> 8) ||
+					(*deviceData)->hour != hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF) ||
+					(*deviceData)->minute != hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8) ||
+					(*deviceData)->second != hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF))
+				{
+					goto checkPollutionNums;
+				}
+				for (i = 0; i < pollutionNums; i++)
+				{
+					if (tab_rp_registers[pollutionStateAddr + PollutionDataLen * i] != 1 && tab_rp_registers[pollutionStateAddr + PollutionDataLen * i] != 'N')
+					{
+						goto checkPollutionNums;
+					}
+				}
+			#else
+				if ((*deviceData)->year != hexToInt(tab_rp_registers[YearMonthAddr] >> 8) ||
+					(*deviceData)->month != hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF) ||
+					(*deviceData)->date != hexToInt(tab_rp_registers[DateHourAddr] >> 8) ||
+					(*deviceData)->hour != hexToInt(tab_rp_registers[DateHourAddr] & 0x00FF) ||
+					(*deviceData)->minute != hexToInt(tab_rp_registers[MinuteSecondAddr] >> 8) ||
+					(*deviceData)->second != hexToInt(tab_rp_registers[MinuteSecondAddr] & 0x00FF))
+				{
+					goto checkPollutionNums;
+				}
+			#endif
+			
 			printf("deviceData poolNum:%d poolNums:%d pollutionNums:%d MN_len:%d MN:%s PW:%s DataTime:%d-%d-%d %d:%d:%d\r\n", (*deviceData)->poolNum, (*deviceData)->poolNums, (*deviceData)->pollutionNums, (*deviceData)->MN_len, (*deviceData)->MN, (*deviceData)->PW,
 				   hexToInt(tab_rp_registers[YearMonthAddr] >> 8) + 2000,
 				   hexToInt(tab_rp_registers[YearMonthAddr] & 0x00FF),
