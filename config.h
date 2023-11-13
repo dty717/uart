@@ -65,7 +65,10 @@
                             #ifndef UART_CLO3
 // #define UART_JIANGNING
                             #ifndef UART_JIANGNING
-#define UART_HUBEI
+// #define UART_HUBEI
+                            #ifndef UART_HUBEI
+#define UART_TIBET
+                            #endif
                             #endif
                             #endif
                             #endif
@@ -81,8 +84,8 @@
     #define usingMultiDevice
 
     #ifdef usingMultiDevice
-        // #define usingLEDScreen
-        // #define readPHFromADC
+        #define usingLEDScreen
+        #define readPHFromADC
         #ifdef readPHFromADC
             #define remainingPollutionNums 2
         #else

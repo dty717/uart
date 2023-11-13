@@ -163,12 +163,151 @@ uint8_t set_led_valueByAddr(modbus_t *ctx, uint16_t led_value_address, float *da
 	return rc;
 }
 
+uint8_t *pollutionName(uint16_t code){
+	switch (code)
+	{
+	case 0:
+		return "w00000";
+	case 1001:
+		return "ph";
+	case 1002:
+		return "w01002";
+	case 1003:
+		return "turbidity";
+	case 1006:
+		return "w01006";
+	case 1009:
+		return "do";
+	case 1010:
+		return "wt";
+	case 1012:
+		return "w01012";
+	case 1014:
+		return "ec";
+	case 1017:
+		return "w01017";
+	case 1018:
+		return "w01018";
+	case 1019:
+		return "w01019";
+	case 1020:
+		return "w01020";
+	case 2003:
+		return "w02003";
+	case 2006:
+		return "w02006";
+	case 3001:
+		return "w03001";
+	case 3002:
+		return "w03002";
+	case 19001:
+		return "w19001";
+	case 19002:
+		return "w19002";
+	case 20012:
+		return "w20012";
+	case 20023:
+		return "w20023";
+	case 20038:
+		return "w20038";
+	case 20061:
+		return "w20061";
+	case 20089:
+		return "w20089";
+	case 20092:
+		return "w20092";
+	case 20111:
+		return "w20111";
+	case 20113:
+		return "w20113";
+	case 20115:
+		return "w20115";
+	case 20116:
+		return "w20116";
+	case 20117:
+		return "w20117";
+	case 20119:
+		return "w20119";
+	case 20120:
+		return "w20120";
+	case 20121:
+		return "w20121";
+	case 20122:
+		return "w20122";
+	case 20123:
+		return "w20123";
+	case 20124:
+		return "w20124";
+	case 20125:
+		return "w20125";
+	case 20126:
+		return "w20126";
+	case 20127:
+		return "w20127";
+	case 20128:
+		return "w20128";
+	case 20138:
+		return "w20138";
+	case 20139:
+		return "w20139";
+	case 20140:
+		return "w20140";
+	case 20141:
+		return "w20141";
+	case 20142:
+		return "w20142";
+	case 20143:
+		return "w20143";
+	case 20144:
+		return "w20144";
+	case 21001:
+		return "w21001";
+	case 21003:
+		return "w21003";
+	case 21004:
+		return "w21004";
+	case 21006:
+		return "w21006";
+	case 21007:
+		return "w21007";
+	case 21011:
+		return "w21011";
+	case 21016:
+		return "w21016";
+	case 21017:
+		return "w21017";
+	case 21019:
+		return "w21019";
+	case 21022:
+		return "w21022";
+	case 21038:
+		return "w21038";
+	case 22001:
+		return "w22001";
+	case 23002:
+		return "w23002";
+	case 25043:
+		return "w25043";
+	case 33001:
+		return "w33001";
+	case 33007:
+		return "w33007";
+		// case 99001:
+		// 	return "w99001";
+		break;
+	default:
+		break;
+	}
+	return "";
+
+}
+
+
 uint8_t *pollutionCode(uint16_t code)
 {
 #ifdef UART_KUNSHAN
 	switch (code)
 	{
-
 	case 1:
 		return "001";
 	case 2:
@@ -255,7 +394,6 @@ uint8_t *pollutionCode(uint16_t code)
 #else
 	switch (code)
 	{
-
 	case 0:
 		return "w00000";
 	case 1001:
@@ -741,7 +879,11 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 #endif
 	for (i = 0; i < pollutionNums; i++)
 	{
+#ifdef UART_TIBET
+		deviceData->pollutions[i].code = pollutionName(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i]);
+#else
 		deviceData->pollutions[i].code = pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i]);
+#endif
 		// printf("%d",sizeof(pollutionCode(tab_rp_registers[pollutionCodeAddr + PollutionDataLen * i])));
 		uint8_t b0 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] >> 8);
 		uint8_t b1 = (uint8_t)(tab_rp_registers[pollutionDataAddr + PollutionDataLen * i] & 0x00FF);
@@ -750,8 +892,11 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		// #ifdef UART_KUNSHAN
 		// 	deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);;
 		// #else
+#if defined(UART_SUZHOU) || defined(UART_KUNSHAN)
+		deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);
+#else
 		deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
-		// #endif
+#endif
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
 #if defined(UART_SUZHOU) && defined(usingMultiDevice)
@@ -761,4 +906,16 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		flashData[HistroySaveAddr + shiftHistoryAddr + 3 + 4 * i] = b3;
 #endif
 	}
+#if defined(UART_SUZHOU) && defined(usingMultiDevice)
+	for (i = 0; i < remainingPollutionNums; i++){
+		uint8_t *arrayVal;
+		arrayVal = (uint8_t *)malloc(4 * sizeof(uint8_t));
+		floatToByteArray(deviceData->pollutions[pollutionNums + i].data, arrayVal);
+		flashData[HistroySaveAddr + shiftHistoryAddr + 4 * pollutionNums + 4 * i] = arrayVal[1];
+		flashData[HistroySaveAddr + shiftHistoryAddr + 4 * pollutionNums + 1 + 4 * i] = arrayVal[0];
+		flashData[HistroySaveAddr + shiftHistoryAddr + 4 * pollutionNums + 2 + 4 * i] = arrayVal[3];
+		flashData[HistroySaveAddr + shiftHistoryAddr + 4 * pollutionNums + 3 + 4 * i] = arrayVal[2];
+		free(arrayVal);
+	}
+#endif
 }

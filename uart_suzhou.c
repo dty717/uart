@@ -225,6 +225,7 @@ int main()
     uint16_t *tab_rp_registers = NULL;
 
     if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'){
+        sleep_ms(100);
         tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
         for (i = 0; i < nb_points; i++)
         {

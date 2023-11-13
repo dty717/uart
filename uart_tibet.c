@@ -13,8 +13,10 @@
 #include "hardware/irq.h"
 #include "hardware/pio.h"
 #include "hardware/watchdog.h"
-#include "hardware/adc.h"
 #include "hardware/flash.h"
+#include "hardware/rtc.h"
+
+#include "pico/util/datetime.h"
 
 #include "uart_rx.pio.h"
 
@@ -22,12 +24,13 @@
 #include "header/device.h"
 #include "header/modbus.h"
 #include "header/J212.h"
+#include "header/http.h"
 #include "header/modbusRTU.h"
 #include "header/flash.h"
 #include "header/gps.h"
 #include "header/common/handler.h"
 
-#ifdef UART_KUNSHAN
+#ifdef UART_TIBET
 
 /// \tag::multicore_dispatch[]
 
@@ -48,13 +51,47 @@ uint8_t *flashData;
 float historyData[256];
 
 uint16_t poolNums = 0;
+uint16_t poolNum = 0;
 uint16_t pollutionNums;
 
-uint8_t needUpdateServer = 0;
+uint8_t needUpdateRTC = 1;
+volatile uint8_t needUpdateServer = 0;
+
+double pollutionsValues[12][120];
+int pollutionsValuesIndex[12];
+
+datetime_t currentDate = {
+    .year = 2023,
+    .month = 11,
+    .day = 9,
+    .dotw = 4, // 0 is Sunday, so 3 is Wednesday
+    .hour = 16,
+    .min = 35,
+    .sec = 00};
+
+static void repeat_task_callback(void)
+{
+    rtc_get_datetime(&currentDate);
+    if (currentDate.hour == 0)
+    {
+        needUpdateRTC = 1;
+    }
+    // if (currentDate.min % 5 == 0)
+    // if (currentDate.min % 4 == 0)
+    {
+        if (deviceData != NULL)
+        {
+            needUpdateServer = 1;
+        }
+    }
+    // printf("needUpdateServer:%d DataTime:%d-%d-%d %d:%d:%d\r\n",needUpdateServer,currentDate.year,currentDate.month,currentDate.day,currentDate.hour,currentDate.min,currentDate.sec);
+}
+
 // Ask core 1 to print a string, to make things easier on core 0
 void core1_entry()
 {
     size_t i;
+    size_t j;
     while (1)
     {
         // uploadDevice(deviceData);	
@@ -64,26 +101,14 @@ void core1_entry()
         // which also indicates the result is ready.	
         
         // multicore_fifo_pop_blocking();	
+        sleep_ms(500);
         // sleep_ms(30000);	
-        sleep_ms(1000);	
-        if(deviceData!=NULL&&needUpdateServer){
-            for (i = 0; i < 3; i++)
-            {
-                uploadDevice(deviceData, uart0, UART0_EN_PIN);
-                // printf("update server\r\n");
-                sleep_ms(1000 * 10);
-                if (!needUpdateServer)
-                {
-                    break;
-                }
-                sleep_ms(2000 * 10);
-                if (!needUpdateServer)
-                {
-                    break;
-                }
-            }
+        //if(n)
+        if (deviceData != NULL && needUpdateServer)
+        {
+            uploadJSON(deviceData, uart0, UART0_EN_PIN);
             needUpdateServer = 0;
-
+            // uploadDeviceHours(deviceData, uart0, UART0_EN_PIN);
         }
         // int32_t (*func)() = (int32_t(*)())multicore_fifo_pop_blocking();	
         // int32_t p = multicore_fifo_pop_blocking();	
@@ -94,17 +119,16 @@ void core1_entry()
 }
 
 // uart0 RX interrupt handler
-void on_uart0_rx() {
-    while (uart_is_readable(uart0)) {
+void on_uart0_rx()
+{
+    while (uart_is_readable(uart0))
+    {
         uint8_t ch = uart_getc(uart0);
         // Can we send it back?
-        printf("(%.2X)", ch);
+        // printf("(%.2X)", ch);
         // modbus_add_RXData(ctx,ch);
-        if(ch=='1'){
-            needUpdateServer = 0;
-            printf("hasUpdateServer\r\n");
-        }
-        if (uart_is_writable(uart0)) {
+        if (uart_is_writable(uart0))
+        {
             // Change it slightly first!
             // ch++;
             // uart_putc(uart0, ch);
@@ -113,13 +137,16 @@ void on_uart0_rx() {
     }
 }
 // uart1 RX interrupt handler
-void on_uart1_rx() {
-    while (uart_is_readable(uart1)) {
+void on_uart1_rx()
+{
+    while (uart_is_readable(uart1))
+    {
         uint8_t ch = uart_getc(uart1);
         // Can we send it back?
         // printf("(%.2X)", ch);
-        modbus_add_RXData(ctx,ch);
-        if (uart_is_writable(uart1)) {
+        modbus_add_RXData(ctx, ch);
+        if (uart_is_writable(uart1))
+        {
             // Change it slightly first!
             // ch++;
             // uart_putc(uart0, ch);
@@ -133,7 +160,9 @@ int main()
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     int res;
 
-    stdio_init_all();    
+    stdio_init_all();
+
+    
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
@@ -182,15 +211,6 @@ int main()
     uart_set_irq_enables(uart0, true, false);
     uart_set_irq_enables(uart1, true, false);
 
-    adc_init();
-
-    // Make sure GPIO is high-impedance, no pullups etc
-    adc_gpio_init(PH_ADC_PIN);
-
-    // Make sure GPIO is high-impedance, no pullups etc
-    adc_gpio_init(TUR_ADC_PIN);
-
-
     // Set up the state machine we're going to use to receive them.
 
     flashData = (uint8_t *)malloc(FLASH_PAGE_SIZE * sizeof(uint8_t));
@@ -229,7 +249,7 @@ int main()
         return -1;
     }
     mb_mapping->tab_bits[0]=2;
-    modbus_set_debug(ctx, FALSE);
+    // modbus_set_debug(ctx, TRUE);
     modbus_connect(ctx);
     modbus_set_slave(ctx, 1);
 
@@ -246,55 +266,97 @@ int main()
     }
     uint16_t *tab_rp_registers = NULL;
 
-    if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'){
-        sleep_ms(100);
-        tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
-        for (i = 0; i < nb_points; i++)
-        {
-            tab_rp_registers[i] = (flash_target_contents[i*2+configAddr]<<8)+flash_target_contents[i*2+configAddr+1];
-        }
-        poolNums = tab_rp_registers[poolNumsAddr];
-        pollutionNums = tab_rp_registers[pollutionNumsAddr];
-        deviceData = new_deviceData(poolNums, tab_rp_registers[pollutionNumsAddr], tab_rp_registers[MN_lenAddr]);
-        deviceData->poolNum = tab_rp_registers[poolNumAddr];
-        deviceData->PW = "123456";
-        addNewDate(deviceData,tab_rp_registers);
-        
-        // uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*(deviceData->poolNum-1);
-        // historyData = (float *)malloc(nb_points * sizeof(float));
+    // if(flash_target_contents[0]=='1'&&flash_target_contents[1]=='2'&&flash_target_contents[2]=='3'){
+    //     tab_rp_registers = (uint16_t *)malloc(nb_points * sizeof(uint16_t));
+    //     for (i = 0; i < nb_points; i++)
+    //     {
+    //         tab_rp_registers[i] = (flash_target_contents[i*2+configAddr]<<8)+flash_target_contents[i*2+configAddr+1];
+    //     }
+    //     poolNums = tab_rp_registers[poolNumsAddr];
+    //     pollutionNums = tab_rp_registers[pollutionNumsAddr];
+    //     deviceData = new_deviceData(poolNums, tab_rp_registers[pollutionNumsAddr], tab_rp_registers[MN_lenAddr]);
+    //     deviceData->poolNum = tab_rp_registers[poolNumAddr];
+    //     deviceData->PW = "123456";
+    //     addNewDate(deviceData,tab_rp_registers);
 
-        for (i = 0; i < poolNums; i++)
-        {
-            // *((pollutionNums+remainingPollutionNums)*4+1)
-            uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*i;
-            if(flashData[HistroySaveAddr+shiftHistoryAddr]==i+1){
-                for (size_t j = 0; j < pollutionNums; j++)
-                {
-                    historyData[i*(pollutionNums+remainingPollutionNums)+j] = flashData[i+j];
-                }
-            }
-            // if(flashData[HistroySaveAddr + shiftHistoryAddr+1+4*i]){
-            // }
-        }
-    }
+    //     // uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*(deviceData->poolNum-1);
+    //     // historyData = (float *)malloc(nb_points * sizeof(float));
+		
+    //     for (i = 0; i < poolNums; i++)	
+    //     {	
+    //         // *((pollutionNums+remainingPollutionNums)*4+1)	
+    //         uint16_t shiftHistoryAddr = (4*(pollutionNums+remainingPollutionNums)+1)*i;	
+    //         if(flashData[HistroySaveAddr+shiftHistoryAddr]==i+1){	
+    //             for (size_t j = 0; j < pollutionNums; j++)	
+    //             {	
+    //                 historyData[i*(pollutionNums+remainingPollutionNums)+j] = flashData[i+j];	
+    //             }	
+    //         }	
+    //         // if(flashData[HistroySaveAddr + shiftHistoryAddr+1+4*i]){	
+    //         // }	
+    //     }
+    // }
 
+    sleep_ms(100);
     // This example dispatches arbitrary functions to run on the second core
     // To do this we run a dispatcher on the second core that accepts a function
     // pointer and runs it
     multicore_launch_core1(core1_entry);
-    
+
     uint8_t times = 0;
     uint8_t currentPool = 0;
 
+    // wait PLC start
+    // sleep_ms(60000);
+
+    // Start on Wednesday 13th January 2021 11:20:00
+    ask_device_rtc(ctx, &currentDate);
+    // currentDate.min = 41;
+    sleep_ms(10000);
+    ask_device_rtc(ctx, &currentDate);
+
+    // Start the RTC
+    rtc_init();
+    rtc_set_datetime(&currentDate);
+
+    // clk_sys is >2000x faster than clk_rtc, so datetime is not updated immediately when rtc_get_datetime() is called.
+    // tbe delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
+    sleep_us(64);
+
+    // Alarm once a minute
+    datetime_t repeatTask = {
+        .year  = -1,
+        .month = -1,
+        .day   = -1,
+        .dotw  = -1,
+        .hour  = -1,
+        .min   = -1,
+        .sec   = 00
+    };
+
+    rtc_set_alarm(&repeatTask, &repeat_task_callback);
+    char datetime_buf[256];
+    char *datetime_str = &datetime_buf[0];
+
     while (true)
     {
-        printf("uart_kunshan\r\n");
-        if(deviceData!=NULL&&ctx->debug)
-            printf("out %d %d %d\r\n", deviceData->poolNums, deviceData->pollutionNums, deviceData->MN_len);
+        // sleep_ms(1000);
+        // val = !val;
+        // gpio_put(LED_PIN, val);
+        // // ask_device_rtc(ctx, &currentDate);
+
+        // rtc_get_datetime(&currentDate);
+        // datetime_to_str(datetime_str, sizeof(datetime_buf), &currentDate);
+        // printf("\r%s      ", datetime_str);
+        // continue;
+        printf("uart_tibet\r\n");
+        // print_buf(flashData,40);
+        // printf("\r\n");
+        // print_buf(flashData+16,40);
         
+        // set_led_valueByAddr(ctx, LED_VALUE_ADDRESS + setLedValueNums * 2, data, dataLen);
+        // printf("PH:%f,TUR%f\r\n",data[0],data[1]);
         response_type_t needUpdate = ask_all_devices(ctx,&deviceData);
-
-
         switch (needUpdate)
         {
         case noResponse:
@@ -304,8 +366,20 @@ int main()
         case newData:
             // set_led_value(ctx, deviceData);
             poolNums = deviceData->poolNums;
+            poolNum = deviceData->poolNum;
             pollutionNums = deviceData->pollutionNums;
-            needUpdateServer = 1;
+            // for (i = 0; i < pollutionNums + remainingPollutionNums; i++)
+            // {
+            //     if (deviceData->pollutions[i].state)
+            //     {
+            //         pollutionsValues[i][pollutionsValuesIndex[i]] = deviceData->pollutions[i].data;
+            //         if (pollutionsValuesIndex[i] == 119)
+            //         {
+            //         }else{
+            //             pollutionsValuesIndex[i]++;
+            //         }
+            //     }
+            // }
             // deviceData->pollutions[deviceData->pollutionNums].code = "w01001";
             // deviceData->pollutions[deviceData->pollutionNums].data = data[0];
             // deviceData->pollutions[deviceData->pollutionNums].state = 1;
@@ -320,8 +394,13 @@ int main()
         default:
             break;
         }
-        // printf("Raw value: 0x%03x, voltage: %f V\n", result, adc_PH * conversion_factor);
-        sleep_ms(3000);
+        if (needUpdateRTC)
+        {
+            ask_device_rtc(ctx, &currentDate);
+            rtc_set_datetime(&currentDate);
+            needUpdateRTC = 0;
+        }
+        sleep_ms(1000);
         val = !val;
         gpio_put(LED_PIN, val);
     }

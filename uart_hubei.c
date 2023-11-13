@@ -14,6 +14,7 @@
 #include "hardware/pio.h"
 #include "hardware/watchdog.h"
 #include "hardware/flash.h"
+#include "hardware/rtc.h"
 
 #include "pico/util/datetime.h"
 

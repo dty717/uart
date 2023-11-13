@@ -128,8 +128,15 @@ uint8_t getWithBit(uint8_t index);
 #define upload_device_id_priority      3
 #define init_device_priority           2
 
-#define Semicolon ;
-#define Comma     ,
+#define Semicolon             ;
+#define Colon                 :
+#define LeftBracket           {
+#define RightBracket          }
+#define CommaString         ","
+#define Apostrophe            '
+#define Quotation             "
+#define ReturnString     "\r\n"
+
 #define sample_time_str -SampleTime=
 #define real_time_data_str -Rtd=
 #define minute_data_min_str -Min=
@@ -139,7 +146,6 @@ uint8_t getWithBit(uint8_t index);
 #define device_running_start_str -Flag=
 #define device_ExternRunning_start_str -EFlag=
 #define FLT_DECIMAL_DIG 10
-
 
 #ifdef __cplusplus
 }

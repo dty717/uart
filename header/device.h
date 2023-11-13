@@ -54,7 +54,7 @@ typedef enum
 
 #define PLC_DATE_REGISTERS_ADDRESS 0x19A
 
-#ifdef UART_HUBEI
+#if defined(UART_HUBEI) || defined(UART_TIBET)
     #define UT_REGISTERS_ADDRESS 0x7D0
 #elif defined(UART_TEST) 
     #define UT_REGISTERS_ADDRESS 0x7D0
@@ -151,6 +151,7 @@ typedef struct deviceDatas {
 
 
 uint8_t *pollutionCode(uint16_t code);
+uint8_t *pollutionName(uint16_t code);
 
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData);
 response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData);
