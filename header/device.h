@@ -94,6 +94,7 @@ typedef enum {
     normal,
     MN_len_erro,
     poolNums_erro,
+    date_erro,
 } response_type_t;
 
 
@@ -165,5 +166,6 @@ uint8_t set_led_value(modbus_t *ctx, deviceData_t *deviceData);
 uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *valueDatas);
 uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data,uint16_t dataLen);
 void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers);
+void addNewCommonDate(deviceData_t *deviceData, uint16_t *tab_rp_registers);
 
 #endif

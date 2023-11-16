@@ -94,8 +94,6 @@ void updateDataTime();
 uint8_t handleUploadInfoRecBuf(uint8_t* rec_buf,uint32_t rec_len);
 void test();
 int UploadInfoRecBufHandle(uint8_t* rec_buf,uint32_t rec_len);
-void uploadInit();
-void initNet();
 uint8_t Match_ExternState(uint8_t val);
 uint8_t Match_State(uint8_t val,uint8_t val2);
 int readBuf(uint8_t* rec_buf,uint32_t rec_len);
@@ -107,11 +105,7 @@ void assignPW(uint8_t *PW);
 void assignST(uint8_t *ST);
 uint16_t assignMN(uint8_t *MN,uint16_t MN_len);
 
-uint8_t *  assignTimeDecimal(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec);
-uint8_t * assignTimeDecimalMicroSec(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec);
-
 uint16_t assignInit(uint8_t *QN, uint8_t *PW, uint8_t *ST, uint8_t *MN,uint16_t MN_len, uint16_t cn);
-void assignTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t* buf,uint16_t *index);
 uint8_t reqReply(uint8_t *_QN);
 uint8_t finishReply(uint8_t *_QN);
 
@@ -127,15 +121,6 @@ uint8_t getWithBit(uint8_t index);
 #define ask_for_system_time_priority   4
 #define upload_device_id_priority      3
 #define init_device_priority           2
-
-#define Semicolon             ;
-#define Colon                 :
-#define LeftBracket           {
-#define RightBracket          }
-#define CommaString         ","
-#define Apostrophe            '
-#define Quotation             "
-#define ReturnString     "\r\n"
 
 #define sample_time_str -SampleTime=
 #define real_time_data_str -Rtd=

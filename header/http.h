@@ -6,7 +6,7 @@ extern "C" {
 #endif
 #include <stdio.h>
 #include "device.h"
-uint8_t uploadJSON(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin);
+uint8_t uploadJSON(deviceData_t *deviceData, datetime_t *currentDate, uart_inst_t *uart, uint8_t uart_en_pin);
 
 #define ID                 no
 #define siteID             siteNo

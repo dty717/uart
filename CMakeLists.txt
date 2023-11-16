@@ -35,9 +35,11 @@ add_executable(uart
   uart_kunshan.c
   uart_hubei.c
   uart_tibet.c
+  uart_drone.c
   uart_CLO3.c
   crc.c
   http.c
+  beidou.c
   device.c
   modbus.c
   modbusRTU.c

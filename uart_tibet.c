@@ -15,6 +15,7 @@
 #include "hardware/watchdog.h"
 #include "hardware/flash.h"
 #include "hardware/rtc.h"
+#include "header/beidou.h"
 
 #include "pico/util/datetime.h"
 
@@ -63,10 +64,10 @@ int pollutionsValuesIndex[12];
 datetime_t currentDate = {
     .year = 2023,
     .month = 11,
-    .day = 9,
+    .day = 16,
     .dotw = 4, // 0 is Sunday, so 3 is Wednesday
-    .hour = 16,
-    .min = 35,
+    .hour = 13,
+    .min = 56,
     .sec = 00};
 
 static void repeat_task_callback(void)
@@ -77,7 +78,7 @@ static void repeat_task_callback(void)
         needUpdateRTC = 1;
     }
     // if (currentDate.min % 5 == 0)
-    // if (currentDate.min % 4 == 0)
+    // if (currentDate.hour % 4 == 0)
     {
         if (deviceData != NULL)
         {
@@ -106,7 +107,11 @@ void core1_entry()
         //if(n)
         if (deviceData != NULL && needUpdateServer)
         {
-            uploadJSON(deviceData, uart0, UART0_EN_PIN);
+            #ifdef usingBeidou
+                uploadBeidou(deviceData, uart0, UART0_EN_PIN);
+            #else
+                uploadJSON(deviceData, &currentDate, uart0, UART0_EN_PIN);
+            #endif
             needUpdateServer = 0;
             // uploadDeviceHours(deviceData, uart0, UART0_EN_PIN);
         }
@@ -161,8 +166,6 @@ int main()
     int res;
 
     stdio_init_all();
-
-    
 
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);

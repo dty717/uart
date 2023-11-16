@@ -1,4 +1,5 @@
 #include "../header/common/handler.h"
+#include <stdlib.h>
 #include <math.h>
 
 uint8_t __twoString[2];
@@ -49,10 +50,10 @@ uint8_t startWithIndex(uint8_t *target, uint8_t *source, uint16_t start, uint16_
 uint8_t endWith(uint8_t *target, uint8_t *source)
 {
     uint32_t lenSource = _len_(source);
-    return endWithWithLen(target, lenSource, source);
+    return endWithWithLen(target, source, lenSource);
 }
 
-uint8_t endWithWithLen(uint8_t *target, uint32_t lenSource, uint8_t *source)
+uint8_t endWithWithLen(uint8_t *target, uint8_t *source, uint32_t lenSource)
 {
     uint32_t len = _len_(target);
     if (lenSource < len)
@@ -205,6 +206,41 @@ void appendFloatToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16
     *index = a;
 }
 
+void appendFloatHexToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16_t len)
+{
+    int i;
+    uint16_t a = *index;
+    if (num < 0)
+    {
+        target[a++] = '2';
+        target[a++] = 'D';
+        num = -num;
+    }
+    uint8_t size = log10(num);
+    int16_t numValue = (int16_t)num;
+
+    for (i = size; i >= 0; i--)
+    {
+        uint8_t tem = numValue % 10;
+        target[a + 2 * i] = '3';
+        target[a + 2 * i + 1] = tem + '0';
+        numValue = (numValue - tem) / 10;
+    }
+    a += 2 *( size + 1);
+    if (len > 0)
+    {
+        target[a++] = '2';
+        target[a++] = 'E';
+        uint16_t power = 10;
+        for (i = 0; i < len; i++)
+        {
+            target[a++] = '3';
+            target[a++] = ((uint32_t)(num * power)) % 10 + '0';
+            power *= 10;
+        }
+    }
+    *index = a;
+}
 
 void appendFloatToStr(float num, uint8_t *target, uint16_t *index)
 {
@@ -296,6 +332,29 @@ uint32_t _len_(uint8_t *buf)
     return len;
 }
 
+void byteToHexStr(uint8_t crctemp, uint8_t *out)
+{
+    int tem = crctemp / 16;
+    if (tem > 9)
+    {
+        out[0] = tem - 10 + 'A';
+    }
+    else
+    {
+        out[0] = tem + '0';
+    }
+    tem = crctemp % 16;
+    if (tem > 9)
+    {
+        out[1] = tem - 10 + 'A';
+    }
+    else
+    {
+        out[1] = tem + '0';
+    }
+    out[2] = '\0';
+}
+
 void intToHexStr(unsigned int crctemp, uint8_t *out)
 {
 
@@ -373,4 +432,93 @@ float toFloat(uint8_t *target, uint16_t startIndex, uint16_t endIndex)
     }
     // printf("%d %d %d  =>  %d",num,val,ten_power,num+val/(ten_power+0.0));
     return num+val/(ten_power+0.0);
+}
+
+uint8_t * assignTimeDecimal(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec) {
+    uint8_t *buf;
+    uint16_t a=0;
+    buf = malloc(14*sizeof(uint8_t));
+    buf[a++] ='2';
+    buf[a++] ='0';
+    buf[a++] = (year / 10) + '0';
+	buf[a++] = (year % 10) + '0';
+	buf[a++] = (month / 10) + '0';
+	buf[a++] = (month % 10) + '0';
+ 	buf[a++] = (date / 10) + '0';
+ 	buf[a++] = (date % 10) + '0';
+ 	buf[a++] = (hour / 10) + '0';
+ 	buf[a++] = (hour % 10) + '0';
+ 	buf[a++] = (min / 10) + '0';
+ 	buf[a++] = (min % 10) + '0';
+ 	buf[a++] = (sec / 10) + '0';
+ 	buf[a++] = (sec % 10) + '0';
+    return buf;
+}
+
+uint8_t * assignTimeDecimalMicroSec(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec) {
+    uint8_t *buf;
+    uint16_t a=0;
+    buf = malloc(14*sizeof(uint8_t));
+    buf[a++] ='2';
+    buf[a++] ='0';
+    buf[a++] = (year / 10) + '0';
+	buf[a++] = (year % 10) + '0';
+	buf[a++] = (month / 10) + '0';
+	buf[a++] = (month % 10) + '0';
+ 	buf[a++] = (date / 10) + '0';
+ 	buf[a++] = (date % 10) + '0';
+ 	buf[a++] = (hour / 10) + '0';
+ 	buf[a++] = (hour % 10) + '0';
+ 	buf[a++] = (min / 10) + '0';
+ 	buf[a++] = (min % 10) + '0';
+ 	buf[a++] = (sec / 10) + '0';
+ 	buf[a++] = (sec % 10) + '0';
+ 	buf[a++] = '0';
+ 	buf[a++] = '0';
+ 	buf[a++] = '0';
+ 	buf[a] = '\0';
+    return buf;
+}
+
+void assignTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t* buf,uint16_t *index) {
+    uint16_t a= *index;
+    buf[a++] ='2';
+    buf[a++] ='0';
+    buf[a++] = (year / 10) + '0';
+	buf[a++] = (year % 10) + '0';
+	buf[a++] = (month / 10) + '0';
+	buf[a++] = (month % 10) + '0';
+    buf[a++] = (date / 10) + '0';
+ 	buf[a++] = (date % 10) + '0';
+ 	buf[a++] = (hour / 10) + '0';
+ 	buf[a++] = (hour % 10) + '0';
+ 	buf[a++] = (min / 10) + '0';
+ 	buf[a++] = (min % 10) + '0';
+ 	buf[a++] = (sec / 10) + '0';
+ 	buf[a++] = (sec % 10) + '0';
+    *index= a;
+}
+
+void assignISOTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t* buf,uint16_t *index) {
+    uint16_t a= *index;
+    buf[a++] ='2';
+    buf[a++] ='0';
+    buf[a++] = (year / 10) + '0';
+	buf[a++] = (year % 10) + '0';
+	buf[a++] =  '-';
+	buf[a++] = (month / 10) + '0';
+	buf[a++] = (month % 10) + '0';
+	buf[a++] =  '-';
+    buf[a++] = (date / 10) + '0';
+ 	buf[a++] = (date % 10) + '0';
+	buf[a++] =  ' ';
+ 	buf[a++] = (hour / 10) + '0';
+ 	buf[a++] = (hour % 10) + '0';
+	buf[a++] =  ':';
+    buf[a++] = (min / 10) + '0';
+ 	buf[a++] = (min % 10) + '0';
+	buf[a++] =  ':';
+    buf[a++] = (sec / 10) + '0';
+ 	buf[a++] = (sec % 10) + '0';
+    *index= a;
 }

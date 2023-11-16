@@ -21,18 +21,24 @@ extern "C"
     void appendChar(uint8_t target, uint8_t *origin, uint16_t *index);
     void appendFloatToStr(float num, uint8_t *target, uint16_t *index);
     void appendFloatToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16_t len);
+    void appendFloatHexToStrWithLen(float num, uint8_t *target, uint16_t *index, uint16_t len);
     void appendNumberToStr(int32_t num, uint8_t *target, uint16_t *index);
     uint32_t strToNum(uint8_t *target, uint16_t start, uint16_t end);
     void lenStr(int len, int data, uint8_t *str);
     void intToHexStr(unsigned int crctemp, uint8_t *out);
+    void byteToHexStr(uint8_t crctemp, uint8_t *out);
     uint32_t _len_(uint8_t *buf);
     uint8_t startWith(uint8_t *target, uint8_t *source);
     uint8_t startWithIndex(uint8_t *target, uint8_t *source, uint16_t start, uint16_t end);
     uint8_t endWith(uint8_t *target, uint8_t *source);
-    uint8_t endWithWithLen(uint8_t *target, uint32_t len, uint8_t *source);
+    uint8_t endWithWithLen(uint8_t *target, uint8_t *source, uint32_t lenSource);
     uint32_t toNumber(uint8_t *target, uint16_t startIndex, uint16_t endIndex);
     float toFloat(uint8_t *target, uint16_t startIndex, uint16_t endIndex);
-    uint8_t containKeyWords(uint8_t *key, uint8_t *msg);
+    uint8_t *assignTimeDecimal(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec);
+    uint8_t *assignTimeDecimalMicroSec(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec);
+    void assignTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t *buf, uint16_t *index);
+    void assignISOTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t *buf, uint16_t *index);
+
 #define appendArray(target, origin, _index) _append(target, _len_(target), origin, _index)
 #define STRINGIFY(x) #x
 #define _STRINGIFY(x) STRINGIFY(x)

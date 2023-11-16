@@ -46,6 +46,19 @@
 
 #define usingSIM
 
+#define DollarString        "$"
+#define AsteriskString      "*"
+#define Semicolon             ;
+#define Colon                 :
+#define LeftBracket           {
+#define RightBracket          }
+#define CommaString         ","
+#define ApostropheString    "'"
+#define QuotationString    "\""
+#define ReturnString     "\r\n"
+
+
+
 #define resetSIM_PIN 10
 #define clientsNumbers 1
 
@@ -68,6 +81,8 @@
 // #define UART_HUBEI
                             #ifndef UART_HUBEI
 #define UART_TIBET
+                            #ifndef UART_TIBET
+#define UART_DRONE
                             #endif
                             #endif
                             #endif
@@ -77,6 +92,19 @@
                             #endif
                             #endif
                             #endif
+                            #endif
+
+
+#ifdef UART_TIBET
+    // #define usingBeidou
+    #ifdef usingBeidou
+        #define beidouReceiverCardID  15950044
+        #define beidouChannel                2
+        #define beidouNeedComfirm            1
+        #define beidouCodeTpye               2
+        #define beidouSendFrequency          0
+    #endif
+#endif
 
 #ifdef UART_SUZHOU
     #define remainingPollutionNums 0
@@ -94,9 +122,6 @@
     #else
         #define remainingPollutionNums 0
     #endif
-
-#elif defined(UART_HUBEI)
-    #define remainingPollutionNums 0
 #else
     #define remainingPollutionNums 0
 #endif

@@ -1,5 +1,7 @@
 #include "header/gprs.h"
 #include "header/common/handler.h"
+#include "math.h"
+#include <string.h>
 // #include "usart.h"
 // #include "error.h"
 // #include "common/LinkedList.h"
@@ -397,7 +399,7 @@ void uploadInit(GPRS_t *gprs , uart_inst_t *uart)
             }
         }
     gprs->state = Handle_idle;
-    return 1;
+    return;
     resetSIM:
         resetATState(gprs);
         gprs->state = NOState;

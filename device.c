@@ -670,23 +670,43 @@ response_type_t ask_device_rtc(modbus_t *ctx, datetime_t *currentDate)
 	rc = modbus_read_registers(ctx, PLC_DATE_REGISTERS_ADDRESS,
 							   6, tab_rp_registers);
 
-	if (rc > 0)
+	if (rc > 0 && tab_rp_registers[0])
 	{
 		// tab_rp_registers
 		currentDate->year = tab_rp_registers[0];
 		#ifdef UART_HUBEI
+			if (tab_rp_registers[1] < 1 || tab_rp_registers[1] > 12||
+				tab_rp_registers[2] < 1 || tab_rp_registers[2] > 31||
+				tab_rp_registers[3] < 0 || tab_rp_registers[3] > 23||
+				tab_rp_registers[4] < 0 || tab_rp_registers[4] > 59||
+				tab_rp_registers[5] < 0 || tab_rp_registers[5] > 59)
+			{
+				free(tab_rp_registers);
+				tab_rp_registers = NULL;
+				return date_erro;
+			}
 			currentDate->month = tab_rp_registers[1];
 			currentDate->day = tab_rp_registers[2];
 			currentDate->hour = tab_rp_registers[3];
 			currentDate->min = tab_rp_registers[4];
 			currentDate->sec = tab_rp_registers[5];
 		#else
+			if (hexToInt(tab_rp_registers[1]) < 1 || hexToInt(tab_rp_registers[1]) > 12 ||
+				hexToInt(tab_rp_registers[2]) < 1 || hexToInt(tab_rp_registers[2]) > 31 ||
+				hexToInt(tab_rp_registers[3]) < 0 || hexToInt(tab_rp_registers[3]) > 23 ||
+				hexToInt(tab_rp_registers[4]) < 0 || hexToInt(tab_rp_registers[4]) > 59 ||
+				hexToInt(tab_rp_registers[5]) < 0 || hexToInt(tab_rp_registers[5]) > 59)
+			{
+				free(tab_rp_registers);
+				tab_rp_registers = NULL;
+				return date_erro;
+			}
 			currentDate->month = hexToInt(tab_rp_registers[1]);
 			currentDate->day = hexToInt(tab_rp_registers[2]);
 			currentDate->hour = hexToInt(tab_rp_registers[3]);
 			currentDate->min = hexToInt(tab_rp_registers[4]);
 			currentDate->sec = hexToInt(tab_rp_registers[5]);
-		#endif
+#endif
 		if (ctx->debug) {
 			printf("DataTime:%d-%d-%d %d:%d:%d\r\n",
 				currentDate->year,
