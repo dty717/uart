@@ -2,7 +2,7 @@
 #include "header/gps.h"
 #include "header/common/handler.h"
 
-gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* gpsData){
+gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* gps_data){
     uint16_t pointIndex = 0;
     uint16_t startIndex = 0;
     gps_response_type_t type;
@@ -27,10 +27,10 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
         {
             if(gpsString[pointIndex++]==','){
                 if(pointIndex>startIndex+5){
-                    gpsData->hour = strToNum(gpsString,startIndex,startIndex+2) + time_zone_shift;
-                    gpsData->minute = strToNum(gpsString,startIndex+2,startIndex+4);
-                    gpsData->second = strToNum(gpsString,startIndex+4,startIndex+6);
-                    // printf("time:%d-%-d-%d\r\n",gpsData->hour,gpsData->minute,gpsData->second);
+                    gps_data->hour = strToNum(gpsString,startIndex,startIndex+2) + time_zone_shift;
+                    gps_data->minute = strToNum(gpsString,startIndex+2,startIndex+4);
+                    gps_data->second = strToNum(gpsString,startIndex+4,startIndex+6);
+                    // printf("time:%d-%-d-%d\r\n",gps_data->hour,gps_data->minute,gps_data->second);
                 }
                 startIndex = pointIndex;
                 break;
@@ -42,8 +42,8 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
             {
                 if (pointIndex > startIndex + 1)
                 {
-                    gpsData->state = gpsString[startIndex];
-                    // printf("state:%c\r\n", gpsData->state);
+                    gps_data->state = gpsString[startIndex];
+                    // printf("state:%c\r\n", gps_data->state);
                 }
                 startIndex = pointIndex;
                 break;
@@ -56,8 +56,8 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
                 if (pointIndex > startIndex + 1)
                 {
 
-                    gpsData->latitude = toFloat(gpsString,startIndex,pointIndex)/100;
-                    // printf("Latitude:%f\r\n",gpsData->latitude);
+                    gps_data->latitude = toFloat(gpsString,startIndex,pointIndex)/100;
+                    // printf("Latitude:%f\r\n",gps_data->latitude);
                 }
                 startIndex = pointIndex;
                 break;
@@ -69,8 +69,8 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
             {
                 if (pointIndex > startIndex + 1)
                 {
-                    gpsData->latitudeFlag = gpsString[startIndex];
-                    // printf("LatitudeFlag:%c\r\n", gpsData->latitudeFlag);
+                    gps_data->latitudeFlag = gpsString[startIndex];
+                    // printf("LatitudeFlag:%c\r\n", gps_data->latitudeFlag);
                 }
                 startIndex = pointIndex;
                 break;
@@ -83,8 +83,8 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
             {
                 if (pointIndex > startIndex + 1)
                 {
-                    gpsData->longitude = toFloat(gpsString, startIndex, pointIndex)/100;
-                    // printf("Longitude:%f\r\n", gpsData->longitude);
+                    gps_data->longitude = toFloat(gpsString, startIndex, pointIndex)/100;
+                    // printf("Longitude:%f\r\n", gps_data->longitude);
                 }
                 startIndex = pointIndex;
                 break;
@@ -96,8 +96,8 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
             {
                 if (pointIndex > startIndex + 1)
                 {
-                    gpsData->longitudeFlag = gpsString[startIndex];
-                    // printf("LongitudeFlag:%c\r\n", gpsData->longitudeFlag);
+                    gps_data->longitudeFlag = gpsString[startIndex];
+                    // printf("LongitudeFlag:%c\r\n", gps_data->longitudeFlag);
                 }
                 startIndex = pointIndex;
                 break;
@@ -130,10 +130,10 @@ gps_response_type_t handleGPSString(uint8_t *gpsString,uint16_t len,gpsData_t* g
             {
                 if (pointIndex > startIndex + 5)
                 {
-                    gpsData->date = strToNum(gpsString, startIndex, startIndex + 2);
-                    gpsData->month = strToNum(gpsString, startIndex + 2, startIndex + 4);
-                    gpsData->year = strToNum(gpsString, startIndex + 4, startIndex + 6) + 2000;
-                    // printf("date:%d-%d-%d\r\n", gpsData->year, gpsData->month, gpsData->date);
+                    gps_data->date = strToNum(gpsString, startIndex, startIndex + 2);
+                    gps_data->month = strToNum(gpsString, startIndex + 2, startIndex + 4);
+                    gps_data->year = strToNum(gpsString, startIndex + 4, startIndex + 6) + 2000;
+                    // printf("date:%d-%d-%d\r\n", gps_data->year, gps_data->month, gps_data->date);
                 }
                 startIndex = pointIndex;
                 break;

@@ -58,16 +58,13 @@ uint16_t pollutionNums;
 uint8_t needUpdateRTC = 1;
 volatile uint8_t needUpdateServer = 0;
 
-double pollutionsValues[12][120];
-int pollutionsValuesIndex[12];
-
 datetime_t currentDate = {
     .year = 2023,
     .month = 11,
-    .day = 16,
-    .dotw = 4, // 0 is Sunday, so 3 is Wednesday
-    .hour = 13,
-    .min = 56,
+    .day = 21,
+    .dotw = 2, // 0 is Sunday, so 3 is Wednesday
+    .hour = 14,
+    .min = 26,
     .sec = 00};
 
 static void repeat_task_callback(void)

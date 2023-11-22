@@ -42,7 +42,7 @@ deviceData_t *deviceData = NULL;
 const uint8_t *flash_target_contents = (const uint8_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
 PIO pio = pio0;
 uint sm = 0;
-gpsData_t *gpsData;
+gpsData_t *gps_data;
 #define uart_rx_program_charLen 256
 uint8_t uart_rx_program_char[uart_rx_program_charLen];
 uint8_t uart_rx_program_char_copy[uart_rx_program_charLen];
@@ -60,7 +60,7 @@ void core1_entry()
 {
     while (1)
     {
-        char c = uart_rx_program_getc(pio, sm);
+        char c = uart_rx_program_getc(pio, sm, 10000);
         // putchar(c);
         if(c!='\n'){
             if(uart_rx_program_charIndex>=uart_rx_program_charLen){
@@ -77,29 +77,29 @@ void core1_entry()
             uart_rx_program_char_copyIndex = uart_rx_program_charIndex;
             uart_rx_program_charIndex = 0;
             uart_rx_program_char[uart_rx_program_charIndex + 1] = '\0';
-            gps_response_type_t gps_response_type= handleGPSString(uart_rx_program_char_copy, uart_rx_program_char_copyIndex, gpsData);
+            gps_response_type_t gps_response_type= handleGPSString(uart_rx_program_char_copy, uart_rx_program_char_copyIndex, gps_data);
             if (gps_response_type == GNRMC||gps_response_type == GPRMC)
             {
 
-                if (gpsData->state == 'A')
+                if (gps_data->state == 'A')
                 {
-                    // printf("gps info:%.4d-%.2d-%.2d %.2d:%.2d:%.2d %f%c,%f%c\r\n", gpsData->year, gpsData->month, gpsData->date, gpsData->hour, gpsData->minute, gpsData->second,
-                    //        gpsData->latitude, gpsData->latitudeFlag, gpsData->longitude, gpsData->longitudeFlag);
+                    // printf("gps info:%.4d-%.2d-%.2d %.2d:%.2d:%.2d %f%c,%f%c\r\n", gps_data->year, gps_data->month, gps_data->date, gps_data->hour, gps_data->minute, gps_data->second,
+                    //        gps_data->latitude, gps_data->latitudeFlag, gps_data->longitude, gps_data->longitudeFlag);
                     // printf("%d\r\n",flashData[0]);
                     if(saveTimes==0){
                         flashData[3] = '4';
                         flashData[4] = '5';
-                        flashData[checkAddr + gps_yearAddr] = gpsData->year-2000;
-                        flashData[checkAddr + gps_monthAddr] = gpsData->month;
-                        flashData[checkAddr + gps_dateAddr] = gpsData->date;
-                        flashData[checkAddr + gps_hourAddr] = gpsData->hour;
-                        flashData[checkAddr + gps_minuteAddr] = gpsData->minute;
-                        flashData[checkAddr + gps_secondAddr] = gpsData->second;
-                        flashData[checkAddr + gps_stateAddr] = gpsData->state;
-                        AppendfloatToU8Array(gpsData->latitude, flashData, checkAddr + gps_latitudeAddr);
-                        flashData[checkAddr + gps_latitudeFlagAddr] = gpsData->latitudeFlag;
-                        AppendfloatToU8Array(gpsData->longitude, flashData, checkAddr + gps_longitudeAddr);
-                        flashData[checkAddr + gps_longitudeFlagAddr] = gpsData->longitudeFlag;
+                        flashData[checkAddr + gps_yearAddr] = gps_data->year-2000;
+                        flashData[checkAddr + gps_monthAddr] = gps_data->month;
+                        flashData[checkAddr + gps_dateAddr] = gps_data->date;
+                        flashData[checkAddr + gps_hourAddr] = gps_data->hour;
+                        flashData[checkAddr + gps_minuteAddr] = gps_data->minute;
+                        flashData[checkAddr + gps_secondAddr] = gps_data->second;
+                        flashData[checkAddr + gps_stateAddr] = gps_data->state;
+                        AppendfloatToU8Array(gps_data->latitude, flashData, checkAddr + gps_latitudeAddr);
+                        flashData[checkAddr + gps_latitudeFlagAddr] = gps_data->latitudeFlag;
+                        AppendfloatToU8Array(gps_data->longitude, flashData, checkAddr + gps_longitudeAddr);
+                        flashData[checkAddr + gps_longitudeFlagAddr] = gps_data->longitudeFlag;
                         flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
                         flash_range_program(FLASH_TARGET_OFFSET, flashData, FLASH_PAGE_SIZE);
                         for (size_t i = 0; i < InputDetectAddr-1; i += 2)
@@ -116,7 +116,7 @@ void core1_entry()
                 else
                 {
                     if(key4)
-                        printf("gps state:%c\r\n", gpsData->state);
+                        printf("gps state:%c\r\n", gps_data->state);
                 }
 
             }
@@ -281,7 +281,7 @@ int main()
     uart_rx_program_init(pio, sm, offset, PIO_RX_PIN, PIO_BAUD_RATE);
 
     flashData = (uint8_t *)malloc(FLASH_PAGE_SIZE * sizeof(uint8_t));
-    gpsData = (gpsData_t *)malloc(sizeof(gpsData_t));
+    gps_data = (gpsData_t *)malloc(sizeof(gpsData_t));
     
     queryServer = malloc(MODBUS_RTU_MAX_ADU_LENGTH);
 
@@ -362,18 +362,18 @@ int main()
         addNewDate(deviceData,tab_rp_registers);
     }
     if(flash_target_contents[3]=='4'&&flash_target_contents[4]=='5'){
-        gpsData->year = flash_target_contents[checkAddr + gps_yearAddr] + 2000;
-        gpsData->month = flash_target_contents[checkAddr + gps_monthAddr];
-        gpsData->date = flash_target_contents[checkAddr + gps_dateAddr];
-        gpsData->hour = flash_target_contents[checkAddr + gps_hourAddr];
-        gpsData->minute = flash_target_contents[checkAddr + gps_minuteAddr];
-        gpsData->second = flash_target_contents[checkAddr + gps_secondAddr];
-        gpsData->latitude = bytesToFloat(flash_target_contents[checkAddr + gps_latitudeAddr + 3], flash_target_contents[checkAddr + gps_latitudeAddr + 2],
+        gps_data->year = flash_target_contents[checkAddr + gps_yearAddr] + 2000;
+        gps_data->month = flash_target_contents[checkAddr + gps_monthAddr];
+        gps_data->date = flash_target_contents[checkAddr + gps_dateAddr];
+        gps_data->hour = flash_target_contents[checkAddr + gps_hourAddr];
+        gps_data->minute = flash_target_contents[checkAddr + gps_minuteAddr];
+        gps_data->second = flash_target_contents[checkAddr + gps_secondAddr];
+        gps_data->latitude = bytesToFloat(flash_target_contents[checkAddr + gps_latitudeAddr + 3], flash_target_contents[checkAddr + gps_latitudeAddr + 2],
                                          flash_target_contents[checkAddr + gps_latitudeAddr + 1], flash_target_contents[checkAddr + gps_latitudeAddr]);
-        gpsData->latitudeFlag = flash_target_contents[checkAddr + gps_latitudeFlagAddr];
-        gpsData->longitude = bytesToFloat(flash_target_contents[checkAddr + gps_longitudeAddr + 3], flash_target_contents[checkAddr + gps_longitudeAddr + 2],
+        gps_data->latitudeFlag = flash_target_contents[checkAddr + gps_latitudeFlagAddr];
+        gps_data->longitude = bytesToFloat(flash_target_contents[checkAddr + gps_longitudeAddr + 3], flash_target_contents[checkAddr + gps_longitudeAddr + 2],
                                           flash_target_contents[checkAddr + gps_longitudeAddr + 1], flash_target_contents[checkAddr + gps_longitudeAddr]);
-        gpsData->longitudeFlag = flash_target_contents[checkAddr + gps_longitudeFlagAddr];
+        gps_data->longitudeFlag = flash_target_contents[checkAddr + gps_longitudeFlagAddr];
     }
 
     struct repeating_timer timer;

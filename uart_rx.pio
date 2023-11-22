@@ -83,11 +83,16 @@ static inline void uart_rx_program_init(PIO pio, uint sm, uint offset, uint pin,
     pio_sm_set_enabled(pio, sm, true);
 }
 
-static inline char uart_rx_program_getc(PIO pio, uint sm) {
+static inline char uart_rx_program_getc(PIO pio, uint sm, ulong timeout) {
     // 8-bit read from the uppermost byte of the FIFO, as data is left-justified
     io_rw_8 *rxfifo_shift = (io_rw_8*)&pio->rxf[sm] + 3;
-    while (pio_sm_is_rx_fifo_empty(pio, sm))
+    ulong now = time_us_32();
+    while (pio_sm_is_rx_fifo_empty(pio, sm)){
+        if(time_us_32() - now > timeout){
+            return 0;
+        }
         tight_loop_contents();
+    }
     return (char)*rxfifo_shift;
 }
 

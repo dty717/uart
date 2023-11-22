@@ -32,9 +32,6 @@
 #define KEY3_PIN 8
 #define KEY4_PIN 9
 
-#define PIO_BAUD_RATE    9600
-#define PIO_RX_PIN    20
-
 #define PH_ADC_PIN    26
 #define PH_ADC         0
 #define TUR_ADC_PIN   28
@@ -94,6 +91,35 @@
                             #endif
                             #endif
 
+#define PH
+#define Temp
+#define O2
+#define Tur
+#define Ele
+
+#ifdef UART_DRONE
+    #define PH_Index             0
+    #define PH_Code       "w01001"
+    #define PH_Addr           0x01
+    #define PH_ValueAddr      0x02
+    #define Temp_Index           1
+    #define Temp_Code     "w01010"
+    #define Temp_Addr         0x01
+    #define Temp_ValueAddr    0x04
+    #define O2_Index             2
+    #define O2_Code       "w01009"
+    #define O2_Addr           0x04
+    #define O2_ValueAddr      0x02
+    #define Tur_Index            3
+    #define Tur_Code      "w01003"
+    #define Tur_Addr          0x03
+    #define Tur_ValueAddr     0x02
+    #define Ele_Index            4
+    #define Ele_Code      "w01014"
+    #define Ele_Addr          0x02
+    #define Ele_ValueAddr     0x02
+    #define USING_BOARD_SmallPicoWithStepperDriver
+#endif
 
 #ifdef UART_TIBET
     // #define usingBeidou
@@ -126,4 +152,17 @@
     #define remainingPollutionNums 0
 #endif
 
+
+#ifdef USING_BOARD_SmallPicoWithStepperDriver
+    #define PIO_BAUD_RATE    9600
+    #define PIO_RX_PIN         19
+    #define DETECT_3_3V_PIN    26
+    #define DETECT_3_3V         0
+    #define POWER_PIN          22
+#else
+    #define PIO_BAUD_RATE    9600
+    #define PIO_RX_PIN         20
 #endif
+
+#endif
+

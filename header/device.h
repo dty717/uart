@@ -69,6 +69,8 @@ typedef enum
 #define COMMON_DEVICE_REGISTERS_ADDRESS 0x0340
 #define COMMON_DEVICE_nb_points 0x20
 
+#define DEFAULT_nb_points 0x2
+
 #ifdef UART_JIANGNING
     #define COMMON_DEVICE_MN "32018880000001"
     #define COMMON_DEVICE_CODE 11
@@ -78,9 +80,9 @@ typedef enum
     #define COMMON_DEVICE_CODE 21003
     #define COMMON_MN_LEN     24
 #else
-    #define COMMON_DEVICE_MN "88888880000001"
+    #define COMMON_DEVICE_MN "88888888888888"
     #define COMMON_DEVICE_CODE 11
-    #define COMMON_MN_LEN     24
+    #define COMMON_MN_LEN     14
 #endif
 
 #define setLedValueNums 6
@@ -157,6 +159,7 @@ uint8_t *pollutionName(uint16_t code);
 response_type_t ask_all_devices(modbus_t *ctx, deviceData_t **deviceData);
 response_type_t ask_device(modbus_t *ctx, deviceData_t **deviceData);
 response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData);
+response_type_t ask_probe(modbus_t *ctx, deviceData_t **deviceData, datetime_t *currentDate, uint8_t *code, uint8_t pollutionIndex, uint16_t device_addr, uint16_t valueAddr);
 response_type_t ask_device_rtc(modbus_t *ctx, datetime_t *currentDate);
 
 deviceData_t* new_deviceData(uint16_t poolNums,uint16_t pollutionNums,uint8_t MN_len);
@@ -167,5 +170,6 @@ uint8_t set_led_values(modbus_t *ctx, uint8_t pool,uint16_t valueNums,uint8_t *v
 uint8_t set_led_valueByAddr(modbus_t *ctx,uint16_t led_value_address,float *data,uint16_t dataLen);
 void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers);
 void addNewCommonDate(deviceData_t *deviceData, uint16_t *tab_rp_registers);
+void addNewProbeDate(deviceData_t *deviceData, uint16_t *tab_rp_registers, datetime_t *currentDate, uint8_t *code, uint8_t pollutionIndex);
 
 #endif

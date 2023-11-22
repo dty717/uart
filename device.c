@@ -530,6 +530,51 @@ uint8_t *pollutionCode(uint16_t code)
 #endif
 }
 
+response_type_t ask_probe(modbus_t *ctx, deviceData_t **deviceData, datetime_t *currentDate, uint8_t *code, uint8_t pollutionIndex, uint16_t device_addr, uint16_t valueAddr)
+{
+
+	int i = 0;
+	uint16_t *tab_rp_registers = NULL;
+
+	tab_rp_registers = (uint16_t *)malloc(DEFAULT_nb_points * sizeof(uint16_t));
+	modbus_set_slave(ctx, device_addr);
+	int rc = 0;
+	rc = modbus_read_registers(ctx, valueAddr,
+							   DEFAULT_nb_points, tab_rp_registers);
+
+	if (rc > 0)
+	{
+		uint8_t b0 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] >> 8);
+		uint8_t b1 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] & 0x00FF);
+		uint8_t b2 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] >> 8);
+		uint8_t b3 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] & 0x00FF);
+		value = bytesToFloat(b2, b3, b0, b1);
+
+		if (*deviceData == NULL)
+		{
+			poolNums = 1;
+			pollutionNums = 5;
+			MN_len = COMMON_MN_LEN;
+
+			poolNum = 1;
+			*deviceData = new_deviceData(poolNums, pollutionNums, MN_len);
+			(*deviceData)->poolNum = poolNum;
+			(*deviceData)->PW = "123456";
+
+		}
+		goto addNewProbeDate;
+	}
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
+	return noResponse;
+addNewProbeDate:
+	addNewProbeDate(*deviceData, tab_rp_registers, currentDate, code, pollutionIndex);
+	printf("pollution %d: code=%s,data=%f,state=%d\r\n", pollutionIndex + 1, (*deviceData)->pollutions[pollutionIndex].code, (*deviceData)->pollutions[pollutionIndex].data, (*deviceData)->pollutions[pollutionIndex].state);
+	free(tab_rp_registers);
+	tab_rp_registers = NULL;
+	return newData;
+}
+
 response_type_t ask_common_device(modbus_t *ctx, deviceData_t **deviceData)
 {
 
@@ -658,6 +703,7 @@ addNewCommonDate:
 	tab_rp_registers = NULL;
 	return newData;
 }
+
 
 response_type_t ask_device_rtc(modbus_t *ctx, datetime_t *currentDate)
 {
@@ -838,6 +884,28 @@ addNewDate:
 	free(tab_rp_registers);
 	tab_rp_registers = NULL;
 	return newData;
+}
+
+void addNewProbeDate(deviceData_t *deviceData, uint16_t *tab_rp_registers, datetime_t *currentDate, uint8_t *code, uint8_t pollutionIndex)
+{
+	deviceData->MN = COMMON_DEVICE_MN;
+	deviceData->MN_len = COMMON_MN_LEN;
+	deviceData->poolNum = poolNum;
+
+	deviceData->year = currentDate->year - 2000;
+	deviceData->month = currentDate->month;
+	deviceData->date = currentDate->day;
+	deviceData->hour = currentDate->hour;
+	deviceData->minute = currentDate->min;
+	deviceData->second = currentDate->sec;
+
+	deviceData->pollutions[pollutionIndex].code = code;
+	uint8_t b0 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] >> 8);
+	uint8_t b1 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr] & 0x00FF);
+	uint8_t b2 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] >> 8);
+	uint8_t b3 = (uint8_t)(tab_rp_registers[commonPollutionDataAddr + 1] & 0x00FF);
+	deviceData->pollutions[pollutionIndex].data = bytesToFloat(b2, b3, b0, b1);
+	deviceData->pollutions[pollutionIndex].state = 1;
 }
 
 void addNewCommonDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)

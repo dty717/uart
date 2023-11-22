@@ -26,7 +26,6 @@
 #include "header/J212.h"
 #include "header/modbusRTU.h"
 #include "header/flash.h"
-#include "header/gps.h"
 #include "header/common/handler.h"
 
 #ifdef UART_HUBEI
@@ -108,7 +107,7 @@ void core1_entry()
         {
             for (i = 0; i < poolNums; i++)
             {
-                uploadDeviceHoursWithData(&allDeviceDatas[i], &currentDate, uart0, UART0_EN_PIN);
+                uploadDeviceWithData(&allDeviceDatas[i], &currentDate, getHoursPollutionDataCMD, uart0, UART0_EN_PIN);
 
                 for (j = 0; j < pollutionNums + remainingPollutionNums; j++)
                 {
@@ -310,9 +309,6 @@ int main()
     // pointer and runs it
     multicore_launch_core1(core1_entry);
 
-    uint8_t times = 0;
-    uint8_t currentPool = 0;
-
     // wait PLC start
     sleep_ms(60000);
 
@@ -342,8 +338,6 @@ int main()
     };
 
     rtc_set_alarm(&repeatTask, &repeat_task_callback);
-    char datetime_buf[256];
-    char *datetime_str = &datetime_buf[0];
 
     while (true)
     {
@@ -387,8 +381,13 @@ int main()
             //         }
             //     }
             // }
-            if(allDeviceDatas == NULL){
+            if (allDeviceDatas == NULL)
+            {
                 allDeviceDatas = (deviceDatas_t *)malloc(poolNums * sizeof(deviceDatas_t));
+                for (i = 0; i < poolNums; i++)
+                {
+                    allDeviceDatas[i].MN_len = 0;
+                }
             }
             if (poolNum > 0)
             {

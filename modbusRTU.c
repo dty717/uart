@@ -83,16 +83,15 @@ static ssize_t _rtu_modbus_send(modbus_t *ctx, const uint8_t *req, int req_lengt
             printf("err:uart%s not writable\n",ctx_rtu->device);
         }
     }
+    // sleep_us(5152 * 1000 / ctx_rtu->baud * (req_length + 1));
+    sleep_us(2452 * 1000 / ctx_rtu->baud * (req_length + 1));
+    gpio_put(ctx_rtu->uart_en_pin, 0);
+
     if (ctx->debug)
     {
-        printf("uart baud:%d,req_length:%d\n", ctx_rtu->baud,req_length);
+        printf("uart baud:%d,req_length:%d\n", ctx_rtu->baud, req_length);
     }
-    sleep_us(5152 * 1000 / ctx_rtu->baud * (req_length + 1));
-    gpio_put(ctx_rtu->uart_en_pin, 0);
-    // sleep_ms(2);
     return req_length;
-
-	// return write(ctx->s, req, req_length);
 }
 
 static int _rtu_modbus_receive(modbus_t *ctx, uint8_t *req)

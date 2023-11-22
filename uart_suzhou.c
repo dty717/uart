@@ -24,7 +24,6 @@
 #include "header/J212.h"
 #include "header/modbusRTU.h"
 #include "header/flash.h"
-#include "header/gps.h"
 #include "header/common/handler.h"
 
 #ifdef UART_SUZHOU

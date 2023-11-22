@@ -77,27 +77,11 @@ enum systemCode {
 #define uint32_t_flash_size 4
 #define float_flash_size 4
 
-uint8_t handleRecBuf(uint8_t addr,uint8_t Ux);
-void Enable_Ux(uint8_t Ux,uint8_t type);
-uint8_t *Match_Rec_Flag(uint8_t Ux);
-uint8_t *Match_Rec_Data(uint8_t Ux);
-uint32_t Match_Rec_Len(uint8_t Ux);
-uint16_t Rec_Timeout(uint8_t Ux);
-uint16_t ErrorTimesMax(uint8_t Ux);
-uint8_t Match_Device_Type(uint8_t Ux);
 uint8_t uploadDevice(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
 uint8_t uploadDeviceMinutes(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
 uint8_t uploadDeviceHours(deviceData_t *deviceData,uart_inst_t *uart,uint8_t uart_en_pin);
-uint8_t uploadDeviceHoursWithData(deviceDatas_t *deviceDatas, datetime_t *currentDate, uart_inst_t *uart, uint8_t uart_en_pin);
-
-void updateDataTime();
-uint8_t handleUploadInfoRecBuf(uint8_t* rec_buf,uint32_t rec_len);
-void test();
-int UploadInfoRecBufHandle(uint8_t* rec_buf,uint32_t rec_len);
-uint8_t Match_ExternState(uint8_t val);
-uint8_t Match_State(uint8_t val,uint8_t val2);
-int readBuf(uint8_t* rec_buf,uint32_t rec_len);
-int handle_receive(uint8_t* buf, uint16_t len);
+uint8_t uploadDeviceWithData(deviceDatas_t *deviceDatas, datetime_t *currentDate, uint16_t cmd, uart_inst_t *uart, uint8_t uart_en_pin);
+uint8_t askDeviceSystemTime(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin);
 
 void assignCN(uint16_t cn);
 void assignQN(uint8_t *QN);
@@ -106,14 +90,6 @@ void assignST(uint8_t *ST);
 uint16_t assignMN(uint8_t *MN,uint16_t MN_len);
 
 uint16_t assignInit(uint8_t *QN, uint8_t *PW, uint8_t *ST, uint8_t *MN,uint16_t MN_len, uint16_t cn);
-uint8_t reqReply(uint8_t *_QN);
-uint8_t finishReply(uint8_t *_QN);
-
-// uint8_t setBit(uint8_t index);
-// uint8_t resetBit(uint8_t index);
-uint8_t getWithBit(uint8_t index);
-
-// void append(uint8_t* target,uint8_t* origin,uint16_t* index)
 
 #define request_reply_priority         8
 #define finish_reply_priority          7

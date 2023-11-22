@@ -6,13 +6,16 @@
 #include "header/common/handler.h"
 #include "config.h"
 
-#define httpHeader "POST /waterQuality/sync HTTP/1.1\r\n" \
-"Content-Type: application/json\r\n" \
-"User-Agent: delin/0.0.1\r\n" \
-"Accept: */*\r\n" \
-"Accept-Encoding: gzip, deflate, br\r\n" \
-"Connection: close\r\n" \
-"Content-Length: "
+#define httpHeader "POST /waterQuality/sync HTTP/1.1\r\n"   \
+                   "Content-Type: application/json\r\n"     \
+                   "User-Agent: delin/0.0.1\r\n"            \
+                   "Host: 47.103.30.148:30001\r\n"          \
+                   "Accept: */*\r\n"                        \
+                   "Accept-Encoding: gzip, deflate, br\r\n" \
+                   "Connection: close\r\n"                  \
+                   "Content-Length: "
+
+
 
 uint8_t http_buf[400];
 uint8_t httpBuffer[564] = httpHeader;
