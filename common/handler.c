@@ -1,6 +1,8 @@
 #include "../header/common/handler.h"
 #include <stdlib.h>
 #include <math.h>
+#include "pico/util/datetime.h"
+#include "config.h"
 
 uint8_t __twoString[2];
 uint8_t *twoString(int val)
@@ -521,4 +523,327 @@ void assignISOTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint
     buf[a++] = (sec / 10) + '0';
  	buf[a++] = (sec % 10) + '0';
     *index= a;
+}
+
+uint8_t convertUTCString(uint8_t *utcString, datetime_t *date)
+{
+    size_t i;
+    switch (utcString[0])
+    {
+        case 'M':
+            date->dotw = 1;
+            break;
+        case 'T':
+            if (utcString[1] == 'u')
+            {
+                date->dotw = 2;
+            }
+            else
+            {
+                date->dotw = 4;
+            }
+            break;
+        case 'W':
+            date->dotw = 3;
+            break;
+        case 'F':
+            date->dotw = 5;
+            break;
+        case 'S':
+            if (utcString[1] == 'a')
+            {
+                date->dotw = 6;
+            }
+            else
+            {
+                date->dotw = 0;
+            }
+            break;
+        default:
+            break;
+    }
+    date->day = 10 * (utcString[5] - '0') + (utcString[6] - '0');
+    switch (utcString[8])
+    {
+        case 'J':
+            if (utcString[9] == 'a')
+            {
+                date->month = 1;
+            }
+            else if (utcString[10] == 'n')
+            {
+                date->month = 6;
+            }else{
+                date->month = 7;
+            }
+            break;
+        case 'F':
+            date->month = 2;
+            break;
+        case 'M':
+            if (utcString[10] == 'r')
+            {
+                date->month = 3;
+            }
+            else
+            {
+                date->month = 5;
+            }
+            break;
+        case 'A':
+            if (utcString[9] == 'p')
+            {
+                date->month = 4;
+            }
+            else
+            {
+                date->month = 8;
+            }
+            break;
+        case 'S':
+            date->month = 9;
+            break;
+        case 'O':
+            date->month = 10;
+            break;
+        case 'N':
+            date->month = 11;
+            break;
+        case 'D':
+            date->month = 12;
+            break;
+        default:
+            break;
+    }
+    date->year = 1000 * (utcString[12] - '0') + 100 * (utcString[13] - '0') + 10 * (utcString[14] - '0') + (utcString[15] - '0');
+    date->hour = 10 * (utcString[17] - '0') + (utcString[18] - '0');
+    date->min = 10 * (utcString[20] - '0') + (utcString[21] - '0');
+    date->sec = 10 * (utcString[23] - '0') + (utcString[24] - '0');
+    if (utcString[26] == 'G')
+    {
+        date->hour += TIMEZONE;
+    }
+    printf("DataTime:%d-%d-%d %d:%d:%d\r\n", date->year, date->month, date->day, date->hour, date->min, date->sec);
+    // printf(":%s\r\n", utcString);
+    return 1;
+}
+
+uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg) {
+    uint32_t len = _len_(msg);
+    uint32_t keyLen = _len_(key);
+    uint32_t startIndex = 0;
+    uint32_t endIndex = 0;
+    uint8_t newKey = 1;
+    uint32_t j = 0;
+    uint16_t msg_skip_spaceShift = 0;
+    uint16_t key_skip_spaceShift = 0;
+    for (size_t i = 0; i < len; i++)
+    {
+        if ((msg[i] == '\r' || msg[i] == '\n') && newKey) {
+            newKey = 0;
+            endIndex = i;
+            msg_skip_spaceShift = 0;
+            key_skip_spaceShift = 0;
+            for (j = startIndex; j + msg_skip_spaceShift < endIndex; j++)
+            {
+                if (j - startIndex + key_skip_spaceShift == keyLen) {
+                    endIndex = j + msg_skip_spaceShift;
+                    break;
+                }
+                while (msg[j + msg_skip_spaceShift] == ' ') {
+                    msg_skip_spaceShift++;
+                }
+                while (key[j - startIndex + key_skip_spaceShift] == ' ') {
+                    key_skip_spaceShift++;
+                }
+                if (msg[j + msg_skip_spaceShift] != key[j - startIndex + key_skip_spaceShift]) {
+                    break;
+                }
+            }
+            if (j + msg_skip_spaceShift == endIndex) {
+                startIndex = j + msg_skip_spaceShift;
+                endIndex = len;
+                for (j = startIndex; j < endIndex; j++)
+                {
+                    if (msg[j] >= '0' && msg[j] <= '9') {
+                        startIndex = j;
+                        for (; j < endIndex; j++)
+                        {
+                            if (msg[j] < '0' || msg[j]>'9') {
+                                endIndex = j;
+                                return toNumber(msg, startIndex, endIndex);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (msg[i] != '\r' && msg[i] != '\n') {
+            if (!newKey) {
+                startIndex = i;
+                newKey = 1;
+            }
+            else if (i == len - 1) {
+                endIndex = len;
+                msg_skip_spaceShift = 0;
+                key_skip_spaceShift = 0;
+                for (j = startIndex; j + msg_skip_spaceShift < endIndex; j++)
+                {
+                    if (j - startIndex + key_skip_spaceShift == keyLen) {
+                        endIndex = j + msg_skip_spaceShift;
+                        break;
+                    }
+                    while (msg[j + msg_skip_spaceShift] == ' ') {
+                        msg_skip_spaceShift++;
+                    }
+                    while (key[j - startIndex + key_skip_spaceShift] == ' ') {
+                        key_skip_spaceShift++;
+                    }
+                    if (msg[j + msg_skip_spaceShift] != key[j - startIndex + key_skip_spaceShift]) {
+                        break;
+                    }
+                }
+                if (j + msg_skip_spaceShift == endIndex) {
+                    startIndex = j + msg_skip_spaceShift;
+
+                    for (j = startIndex; j < len; j++)
+                    {
+                        if (msg[j] >= '0' && msg[j] <= '9') {
+                            startIndex = j;
+                            for (; j < len; j++)
+                            {
+                                if (msg[j] < '0' || msg[j]>'9') {
+                                    endIndex = j;
+                                    return toNumber(msg, startIndex, endIndex);
+                                }
+                                else if (j == len - 1) {
+                                    endIndex = len;
+                                    return toNumber(msg, startIndex, endIndex);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+
+uint8_t containKeyWords(uint8_t* key, uint8_t* msg) {
+    uint32_t len = _len_(msg);
+    return containKeyWordsWithLen(key, msg, len);
+}
+
+uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len) {
+    uint32_t keyLen = _len_(key);
+    uint32_t startIndex = 0;
+    uint32_t endIndex = 0;
+    uint8_t newKey = 1;
+    uint32_t j = 0;
+    uint16_t msg_skip_spaceShift = 0;
+    uint16_t key_skip_spaceShift = 0;
+    uint16_t last_msg_skip_spaceShift = 0;
+    uint16_t last_key_skip_spaceShift = 0;
+    uint32_t last_j = 0;
+    uint32_t last_startIndex=0;
+    uint8_t last_having = 0;
+    for (size_t i = 0; i < len; i++)
+    {
+        if ((msg[i] == '\r' || msg[i] == '\n') && newKey) {
+            newKey = 0;
+            endIndex = i;
+            msg_skip_spaceShift = 0;
+            key_skip_spaceShift = 0;
+            for (j = startIndex; j + msg_skip_spaceShift < endIndex; j++)
+            {
+                if (j - startIndex + key_skip_spaceShift == keyLen) {
+                    endIndex = j + msg_skip_spaceShift;
+                    break;
+                }
+                while (msg[j + msg_skip_spaceShift] == ' ') {
+                    msg_skip_spaceShift++;
+                }
+                while (key[j - startIndex + key_skip_spaceShift] == ' ') {
+                    key_skip_spaceShift++;
+                }
+                if (msg[j + msg_skip_spaceShift] != key[j - startIndex + key_skip_spaceShift]) {
+                    if (j == startIndex) {
+                        startIndex++;
+                    }
+                    else {
+                        if (j + msg_skip_spaceShift == endIndex && j - startIndex + key_skip_spaceShift == keyLen)
+                        {
+                            if(endIndex-keyLen >= 0){
+                                return endIndex-keyLen + 1;
+                            }
+                            return 1;
+                        }else{
+                            msg_skip_spaceShift = last_msg_skip_spaceShift;
+                            key_skip_spaceShift = last_key_skip_spaceShift;
+                            j = last_j;
+                            startIndex = last_startIndex;
+                            startIndex++;
+                            last_having = 0;
+                        }
+                    }
+                }else{
+                    if(!last_having){
+                        last_msg_skip_spaceShift = msg_skip_spaceShift;
+                        last_key_skip_spaceShift = key_skip_spaceShift;
+                        last_j = j;
+                        last_startIndex = startIndex;
+                        last_having = 1;
+                    }
+
+                }
+            }
+            if (j + msg_skip_spaceShift == endIndex && j - startIndex + key_skip_spaceShift == keyLen) {
+                if(endIndex-keyLen >= 0){
+                    return endIndex-keyLen + 1;
+                }
+                return 1;
+            }
+        }
+        else if (msg[i] != '\r' && msg[i] != '\n') {
+            if (!newKey) {
+                startIndex = i;
+                newKey = 1;
+            }
+            else if(i==len-1){
+                endIndex = len;
+                msg_skip_spaceShift = 0;
+                key_skip_spaceShift = 0;
+                for (j = startIndex; j + msg_skip_spaceShift < endIndex; j++)
+                {
+                    if (j - startIndex + key_skip_spaceShift == keyLen) {
+                        endIndex = j + msg_skip_spaceShift;
+                        break;
+                    }
+                    while (msg[j + msg_skip_spaceShift] == ' ') {
+                        msg_skip_spaceShift++;
+                    }
+                    while (key[j - startIndex + key_skip_spaceShift] == ' ') {
+                        key_skip_spaceShift++;
+                    }
+                    if (msg[j + msg_skip_spaceShift] != key[j - startIndex + key_skip_spaceShift]) {
+                        if (j ==startIndex) {
+                            startIndex++;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                }
+                if (j + msg_skip_spaceShift == endIndex&& j - startIndex + key_skip_spaceShift == keyLen) {
+                    if(endIndex-keyLen >= 0){
+                        return endIndex-keyLen + 1;
+                    }
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }

@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #define TEST_NUM 10
+#define TIMEZONE 8
 
 #define BAUD_RATE 9600
 #define DATA_BITS 8
@@ -67,7 +68,7 @@
                             #ifndef UART_TEST_GPRS
 // #define UART_TEST2
                             #ifndef UART_TEST2
-// #define UART_KUNSHAN
+#define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
 // #define UART_SUZHOU
                             #ifndef UART_SUZHOU
@@ -129,7 +130,10 @@
         #define beidouNeedComfirm            1
         #define beidouCodeTpye               2
         #define beidouSendFrequency          0
+    #else
+        #define _api_password             "12"
     #endif
+
 #endif
 
 #ifdef UART_SUZHOU

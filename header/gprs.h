@@ -138,9 +138,6 @@ uint8_t SIM_send(Client *client,GPRS_t *gprs, uint8_t *data, uart_inst_t *uart);
 uint8_t* AT_ANP();
 uint8_t sendTCPHeader(uint8_t *header, uint8_t channel,uint16_t len,uint16_t *headerBufferIndex);
 uint8_t handleReceive(GPRS_t *gprs, uint8_t *msg);
-uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg);
-uint8_t containKeyWords(uint8_t* key, uint8_t* msg);
-uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len);
 
 #define NOState 0
 

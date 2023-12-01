@@ -58,6 +58,12 @@ uint16_t pollutionNums;
 uint8_t needUpdateRTC = 1;
 volatile uint8_t needUpdateServer = 0;
 
+#ifdef usingBeidou
+#else
+    _request *active_request;
+#endif
+
+
 datetime_t currentDate = {
     .year = 2023,
     .month = 11,
@@ -79,11 +85,16 @@ static void repeat_task_callback(void)
     {
         if (deviceData != NULL)
         {
-            needUpdateServer = 1;
+            needUpdateServer = 3;
         }
     }
     // printf("needUpdateServer:%d DataTime:%d-%d-%d %d:%d:%d\r\n",needUpdateServer,currentDate.year,currentDate.month,currentDate.day,currentDate.hour,currentDate.min,currentDate.sec);
 }
+
+volatile uint16_t volatile_uart0_recv_len;
+
+uint8_t uart0_recv[1024];
+uint16_t uart0_recv_len;
 
 // Ask core 1 to print a string, to make things easier on core 0
 void core1_entry()
@@ -100,8 +111,6 @@ void core1_entry()
         
         // multicore_fifo_pop_blocking();	
         sleep_ms(500);
-        // sleep_ms(30000);	
-        //if(n)
         if (deviceData != NULL && needUpdateServer)
         {
             #ifdef usingBeidou
@@ -109,14 +118,27 @@ void core1_entry()
             #else
                 uploadJSON(deviceData, &currentDate, uart0, UART0_EN_PIN);
             #endif
-            needUpdateServer = 0;
-            // uploadDeviceHours(deviceData, uart0, UART0_EN_PIN);
+            sleep_ms(5000);
+            uart0_recv_len = volatile_uart0_recv_len;
+            if ((handleHttp(uart0_recv, &uart0_recv_len, active_request) == _200) && containKeyWords("success", active_request->body))
+            {
+                needUpdateServer = 0;
+                if (currentDate.year < active_request->date.year || currentDate.month < active_request->date.month || currentDate.day < active_request->date.day ||
+                    currentDate.hour < active_request->date.hour)
+                {
+                    rtc_set_datetime(&active_request->date);
+                }
+            }
+            else
+            {
+                if (needUpdateServer > 0)
+                {
+                    needUpdateServer--;
+                }
+                sleep_ms(2000);
+            }
         }
-        // int32_t (*func)() = (int32_t(*)())multicore_fifo_pop_blocking();	
-        // int32_t p = multicore_fifo_pop_blocking();	
-        // int32_t result = (*func)(p);	
-        // multicore_fifo_push_blocking(result);	
-        // sleep_ms(1250);	
+        volatile_uart0_recv_len = 0;
     }
 }
 
@@ -126,16 +148,15 @@ void on_uart0_rx()
     while (uart_is_readable(uart0))
     {
         uint8_t ch = uart_getc(uart0);
-        // Can we send it back?
-        // printf("(%.2X)", ch);
-        // modbus_add_RXData(ctx,ch);
-        if (uart_is_writable(uart0))
+        if (!ch)
         {
-            // Change it slightly first!
-            // ch++;
-            // uart_putc(uart0, ch);
+            continue;
         }
-        // chars_rxed++;
+        uart0_recv[volatile_uart0_recv_len++] = ch;
+        if (volatile_uart0_recv_len == 1024)
+        {
+            volatile_uart0_recv_len = 0;
+        }
     }
 }
 // uart1 RX interrupt handler
@@ -242,6 +263,10 @@ int main()
     modbus_rtu_t  *ctx_rtu = (modbus_rtu_t *)ctx->backend_data;
     uint8_t *query;
     query = malloc(MODBUS_RTU_MAX_ADU_LENGTH);
+    #ifdef usingBeidou
+    #else
+        active_request = (_request *)malloc(sizeof(_request));
+    #endif
     if (mb_mapping == NULL) {
         printf("err:Failed to allocate the mapping: %s\n",
                 modbus_strerror(errno));

@@ -2,6 +2,7 @@
 #define __HANDLER_H
 
 #include <stdio.h>
+#include "pico/util/datetime.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -38,6 +39,10 @@ extern "C"
     uint8_t *assignTimeDecimalMicroSec(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec);
     void assignTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t *buf, uint16_t *index);
     void assignISOTime(uint8_t year, uint8_t month, uint8_t date, uint8_t hour, uint8_t min, uint8_t sec, uint8_t *buf, uint16_t *index);
+    uint8_t convertUTCString(uint8_t *utcString, datetime_t *date);
+    uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg);
+    uint8_t containKeyWords(uint8_t* key, uint8_t* msg);
+    uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len);
 
 #define appendArray(target, origin, _index) _append(target, _len_(target), origin, _index)
 #define STRINGIFY(x) #x
