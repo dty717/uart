@@ -163,13 +163,13 @@ void appendNumberToStr(int32_t num, uint8_t *target, uint16_t *index)
     }
     uint8_t size = log10(num);
     uint16_t a = *index;
-    int16_t numValue = (int16_t)num;
+    // int16_t numValue = (int16_t)num;
 
     for (int i = size; i >= 0; i--)
     {
-        uint8_t tem = numValue % 10;
+        uint8_t tem = num % 10;
         target[a + i] = tem + '0';
-        numValue = (numValue - tem) / 10;
+        num = (num - tem) / 10;
     }
     a += size + 1;
     *index = a;
