@@ -9,7 +9,7 @@
 #define httpHeader "POST /waterQuality/sync HTTP/1.1\r\n"   \
                    "Content-Type: application/json\r\n"     \
                    "User-Agent: delin/0.0.1\r\n"            \
-                   "Host: 47.103.30.148:30001\r\n"          \
+                   "Host: 43.139.91.183:7000\r\n"          \
                    "Accept: */*\r\n"                        \
                    "Accept-Encoding: gzip, deflate, br\r\n" \
                    "Connection: close\r\n"                  \
@@ -26,7 +26,7 @@ uint8_t httpBuffer[564] = httpHeader;
     _append(http_buf, index, httpBuffer, &sendBufferIndex);  \
     appendArray(ReturnString, httpBuffer, &sendBufferIndex);
 
-uint8_t uploadJSON(deviceData_t *deviceData, datetime_t *currentDate, uart_inst_t *uart, uint8_t uart_en_pin)
+uint8_t uploadJSON(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin)
 {
     uint16_t index = 0;
     size_t i;
@@ -107,14 +107,14 @@ uint8_t uploadJSON(deviceData_t *deviceData, datetime_t *currentDate, uart_inst_
     appendArray("Mg/L", http_buf, &index);
     appendArray(QuotationString, http_buf, &index);
 
-    appendArray(CommaString, http_buf, &index);
-    appendArray(QuotationString, http_buf, &index);
-    appendArray(_STRINGIFY(ec_unit), http_buf, &index);
-    appendArray(QuotationString, http_buf, &index);
-    appendArray(_STRINGIFY(Colon), http_buf, &index);
-    appendArray(QuotationString, http_buf, &index);
-    appendArray("μs/cm", http_buf, &index);
-    appendArray(QuotationString, http_buf, &index);
+    // appendArray(CommaString, http_buf, &index);
+    // appendArray(QuotationString, http_buf, &index);
+    // appendArray(_STRINGIFY(ec_unit), http_buf, &index);
+    // appendArray(QuotationString, http_buf, &index);
+    // appendArray(_STRINGIFY(Colon), http_buf, &index);
+    // appendArray(QuotationString, http_buf, &index);
+    // appendArray("μs/cm", http_buf, &index);
+    // appendArray(QuotationString, http_buf, &index);
 
     appendArray(CommaString, http_buf, &index);
     appendArray(QuotationString, http_buf, &index);
@@ -131,7 +131,7 @@ uint8_t uploadJSON(deviceData_t *deviceData, datetime_t *currentDate, uart_inst_
     appendArray(QuotationString, http_buf, &index);
     appendArray(_STRINGIFY(Colon), http_buf, &index);
     appendArray(QuotationString, http_buf, &index);
-    assignISOTime(currentDate->year - 2000, currentDate->month, currentDate->day, currentDate->hour, currentDate->min, currentDate->sec, http_buf, &index);
+    assignISOTime(deviceData->year, deviceData->month, deviceData->date, deviceData->hour, deviceData->minute, deviceData->second, http_buf, &index);
     appendArray(QuotationString, http_buf, &index);
 
     appendArray(_STRINGIFY(RightBracket), http_buf, &index);

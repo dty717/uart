@@ -43,7 +43,9 @@ extern "C"
     uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg);
     uint8_t containKeyWords(uint8_t* key, uint8_t* msg);
     uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len);
-
+    uint8_t containWords(uint8_t *key, uint8_t *msg);
+    int64_t duringTime(uint16_t year0, uint8_t month0, uint8_t day0, uint8_t hour0, uint8_t minute0, uint8_t second0,
+                    uint16_t year1, uint8_t month1, uint8_t day1, uint8_t hour1, uint8_t minute1, uint8_t second1);
 #define appendArray(target, origin, _index) _append(target, _len_(target), origin, _index)
 #define STRINGIFY(x) #x
 #define _STRINGIFY(x) STRINGIFY(x)

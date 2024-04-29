@@ -1,6 +1,7 @@
 #include "../header/common/handler.h"
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 #include "pico/util/datetime.h"
 #include "config.h"
 
@@ -623,7 +624,7 @@ uint8_t convertUTCString(uint8_t *utcString, datetime_t *date)
     {
         date->hour += TIMEZONE;
     }
-    printf("DataTime:%d-%d-%d %d:%d:%d\r\n", date->year, date->month, date->day, date->hour, date->min, date->sec);
+    // printf("DataTime:%d-%d-%d %d:%d:%d\r\n", date->year, date->month, date->day, date->hour, date->min, date->sec);
     // printf(":%s\r\n", utcString);
     return 1;
 }
@@ -730,13 +731,45 @@ uint32_t getKeyWordValue(uint8_t* key, uint8_t* msg) {
     return 0;
 }
 
+int64_t duringTime(uint16_t year0, uint8_t month0, uint8_t day0, uint8_t hour0, uint8_t minute0, uint8_t second0,
+                    uint16_t year1, uint8_t month1, uint8_t day1, uint8_t hour1, uint8_t minute1, uint8_t second1) {
+    time_t t0;
+    time_t t1;
+    struct tm tm0;
+    struct tm tm1;
 
-uint8_t containKeyWords(uint8_t* key, uint8_t* msg) {
+    tm0.tm_year = year0 - 1900;
+    tm0.tm_mon = month0 - 1;
+    tm0.tm_mday = day0;
+    tm0.tm_hour = hour0;
+    tm0.tm_min = minute0;
+    tm0.tm_sec = second0;
+    tm0.tm_isdst = -1;
+    t0 = mktime(&tm0);
+    tm1.tm_year = year1 - 1900;
+    tm1.tm_mon = month1 - 1;
+    tm1.tm_mday = day1;
+    tm1.tm_hour = hour1;
+    tm1.tm_min = minute1;
+    tm1.tm_sec = second1;
+    tm1.tm_isdst = -1;
+    t1 = mktime(&tm1);
+    return t0 - t1;
+};
+
+
+uint8_t containKeyWords(uint8_t *key, uint8_t *msg)
+{
     uint32_t len = _len_(msg);
     return containKeyWordsWithLen(key, msg, len);
 }
 
-uint8_t containKeyWordsWithLen(uint8_t* key, uint8_t* msg,uint32_t len) {
+uint8_t containWords(uint8_t *key, uint8_t *msg){
+    return strlen(key) == strspn(key, msg);
+}
+
+uint8_t containKeyWordsWithLen(uint8_t *key, uint8_t *msg, uint32_t len)
+{
     uint32_t keyLen = _len_(key);
     uint32_t startIndex = 0;
     uint32_t endIndex = 0;

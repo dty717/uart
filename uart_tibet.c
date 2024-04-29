@@ -55,7 +55,7 @@ uint16_t poolNums = 0;
 uint16_t poolNum = 0;
 uint16_t pollutionNums;
 
-uint8_t needUpdateRTC = 1;
+uint8_t hasUpdateRTCFromDataTime = 0;
 volatile uint8_t needUpdateServer = 0;
 
 #ifdef usingBeidou
@@ -76,16 +76,19 @@ datetime_t currentDate = {
 static void repeat_task_callback(void)
 {
     rtc_get_datetime(&currentDate);
-    if (currentDate.hour == 0)
+
+    if (hasUpdateRTCFromDataTime)
     {
-        needUpdateRTC = 1;
+        hasUpdateRTCFromDataTime = 0;
     }
-    // if (currentDate.min % 5 == 0)
-    // if (currentDate.hour % 4 == 0)
+    else
     {
-        if (deviceData != NULL)
+        if (currentDate.hour % 4 == 0)
         {
-            needUpdateServer = 3;
+            if (deviceData != NULL)
+            {
+                needUpdateServer = 3;
+            }
         }
     }
     // printf("needUpdateServer:%d DataTime:%d-%d-%d %d:%d:%d\r\n",needUpdateServer,currentDate.year,currentDate.month,currentDate.day,currentDate.hour,currentDate.min,currentDate.sec);
@@ -101,6 +104,7 @@ void core1_entry()
 {
     size_t i;
     size_t j;
+    int64_t during_time;
     while (1)
     {
         // uploadDevice(deviceData);	
@@ -108,7 +112,7 @@ void core1_entry()
         // We have one incoming int32_t as a parameter, and will provide an	
         // int32_t return value by simply pushing it back on the FIFO	
         // which also indicates the result is ready.	
-        
+
         // multicore_fifo_pop_blocking();	
         sleep_ms(500);
         if (deviceData != NULL && needUpdateServer)
@@ -116,27 +120,59 @@ void core1_entry()
             #ifdef usingBeidou
                 uploadBeidou(deviceData, uart0, UART0_EN_PIN);
             #else
-                uploadJSON(deviceData, &currentDate, uart0, UART0_EN_PIN);
+                uploadJSON(deviceData, uart0, UART0_EN_PIN);
             #endif
             sleep_ms(5000);
             uart0_recv_len = volatile_uart0_recv_len;
-            if ((handleHttp(uart0_recv, &uart0_recv_len, active_request) == _200) && containKeyWords("success", active_request->body))
-            {
-                needUpdateServer = 0;
-                if (currentDate.year < active_request->date.year || currentDate.month < active_request->date.month || currentDate.day < active_request->date.day ||
-                    currentDate.hour < active_request->date.hour)
+            #ifdef usingBeidou
+                if (containWords(",Y,", uart0_recv))
                 {
-                    rtc_set_datetime(&active_request->date);
+                    needUpdateServer = 0;
                 }
-            }
-            else
-            {
-                if (needUpdateServer > 0)
+                else
                 {
-                    needUpdateServer--;
+                    if (needUpdateServer > 0)
+                    {
+                        needUpdateServer--;
+                    }
+                    sleep_ms(60000);
                 }
-                sleep_ms(2000);
-            }
+            #else
+                if ((handleHttp(uart0_recv, &uart0_recv_len, active_request) == _200))
+                {
+                    if (containWords("success", active_request->body))
+                    {
+                        needUpdateServer = 0;
+                    }
+                    else
+                    {
+                        if (needUpdateServer > 0)
+                        {
+                            needUpdateServer--;
+                        }
+                        sleep_ms(2000);
+                    }
+                    during_time = duringTime(
+                        active_request->date.year, active_request->date.month, active_request->date.day, active_request->date.hour, active_request->date.min, active_request->date.sec,
+                        currentDate.year, currentDate.month, currentDate.day, currentDate.hour, currentDate.min, currentDate.sec);
+                    if (during_time > 60 * 60)
+                    {
+                        // printf("update datetime\r\n");
+                        rtc_set_datetime(&active_request->date);
+                        sleep_ms(100);
+                        rtc_get_datetime(&currentDate);
+                    }
+                }
+                else
+                {
+                    if (needUpdateServer > 0)
+                    {
+                        needUpdateServer--;
+                    }
+                    sleep_ms(2000);
+                }
+            #endif
+
         }
         volatile_uart0_recv_len = 0;
     }
@@ -263,10 +299,10 @@ int main()
     modbus_rtu_t  *ctx_rtu = (modbus_rtu_t *)ctx->backend_data;
     uint8_t *query;
     query = malloc(MODBUS_RTU_MAX_ADU_LENGTH);
-    #ifdef usingBeidou
-    #else
+#ifdef usingBeidou
+#else
         active_request = (_request *)malloc(sizeof(_request));
-    #endif
+#endif
     if (mb_mapping == NULL) {
         printf("err:Failed to allocate the mapping: %s\n",
                 modbus_strerror(errno));
@@ -330,7 +366,7 @@ int main()
 
     uint8_t times = 0;
     uint8_t currentPool = 0;
-
+    int64_t during_time;
     // wait PLC start
     // sleep_ms(60000);
 
@@ -344,6 +380,8 @@ int main()
     rtc_init();
     rtc_set_datetime(&currentDate);
 
+    // printf("during:%d %ld\r\n", during_time > 60 * 60, during_time);
+
     // clk_sys is >2000x faster than clk_rtc, so datetime is not updated immediately when rtc_get_datetime() is called.
     // tbe delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(64);
@@ -355,7 +393,7 @@ int main()
         .day   = -1,
         .dotw  = -1,
         .hour  = -1,
-        .min   = -1,
+        .min   = 05,
         .sec   = 00
     };
 
@@ -368,7 +406,6 @@ int main()
         // sleep_ms(1000);
         // val = !val;
         // gpio_put(LED_PIN, val);
-        // // ask_device_rtc(ctx, &currentDate);
 
         // rtc_get_datetime(&currentDate);
         // datetime_to_str(datetime_str, sizeof(datetime_buf), &currentDate);
@@ -393,38 +430,31 @@ int main()
             poolNums = deviceData->poolNums;
             poolNum = deviceData->poolNum;
             pollutionNums = deviceData->pollutionNums;
-            // for (i = 0; i < pollutionNums + remainingPollutionNums; i++)
-            // {
-            //     if (deviceData->pollutions[i].state)
-            //     {
-            //         pollutionsValues[i][pollutionsValuesIndex[i]] = deviceData->pollutions[i].data;
-            //         if (pollutionsValuesIndex[i] == 119)
-            //         {
-            //         }else{
-            //             pollutionsValuesIndex[i]++;
-            //         }
-            //     }
-            // }
-            // deviceData->pollutions[deviceData->pollutionNums].code = "w01001";
-            // deviceData->pollutions[deviceData->pollutionNums].data = data[0];
-            // deviceData->pollutions[deviceData->pollutionNums].state = 1;
-            
-            // deviceData->pollutions[deviceData->pollutionNums + 1].code = "w01012";
-            // deviceData->pollutions[deviceData->pollutionNums].data = data[1];
-            // deviceData->pollutions[deviceData->pollutionNums].state = 1;
-            
-            // multicore_fifo_push_blocking(123);
-            // uploadDevice(deviceData,uart0,uart0_EN);
+            rtc_get_datetime(&currentDate);
+            during_time = duringTime(
+                deviceData->year + 2000, deviceData->month, deviceData->date, deviceData->hour, deviceData->minute, deviceData->second,
+                currentDate.year, currentDate.month, currentDate.day, currentDate.hour, currentDate.min, currentDate.sec);
+            if (during_time > 60 * 60)
+            {
+                currentDate.year = deviceData->year + 2000;
+                currentDate.month = deviceData->month;
+                currentDate.day = deviceData->date;
+                currentDate.hour = deviceData->hour;
+                currentDate.min = deviceData->minute;
+                currentDate.sec = 1;
+                rtc_set_datetime(&currentDate);
+                hasUpdateRTCFromDataTime = 1;
+            }
             break;
         default:
             break;
         }
-        if (needUpdateRTC)
-        {
-            ask_device_rtc(ctx, &currentDate);
-            rtc_set_datetime(&currentDate);
-            needUpdateRTC = 0;
-        }
+        // if (needUpdateRTC)
+        // {
+        //     ask_device_rtc(ctx, &currentDate);
+        //     rtc_set_datetime(&currentDate);
+        //     needUpdateRTC = 0;
+        // }
         sleep_ms(1000);
         val = !val;
         gpio_put(LED_PIN, val);

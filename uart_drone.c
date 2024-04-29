@@ -59,11 +59,11 @@ volatile uint8_t needUpdateServer = 0;
 volatile uint8_t detect_3_3V;
 volatile uint8_t lastDetect_3_3V;
 datetime_t currentDate = {
-    .year = 2023,
-    .month = 11,
-    .day = 20,
-    .dotw = 1, // 0 is Sunday, so 3 is Wednesday
-    .hour = 14,
+    .year = 2024,
+    .month = 3,
+    .day = 6,
+    .dotw = 4, // 0 is Sunday, so 3 is Wednesday
+    .hour = 9,
     .min = 31,
     .sec = 00};
 
@@ -71,7 +71,7 @@ static void repeat_task_callback(void)
 {
     rtc_get_datetime(&currentDate);
 
-    if (currentDate.min % 10 == 0)
+    if (currentDate.sec % 30 == 0)
     {
         if (deviceData != NULL)
         {
@@ -86,18 +86,19 @@ void core1_entry()
     size_t i;
     size_t j;
     char c;
-    ulong now;
-    ulong during = 10 * 1000 * 1000;
+    uint32_t now;
+    uint32_t during = 10 * 1000 * 1000;
     while (1)
     {
         // sleep_ms(500);
         now = time_us_32();
-        while (1)
+        while (0)
         {
             if (time_us_32() - now > during)
             {
                 break;
             }
+            continue;
             c = uart_rx_program_getc(pio, sm, 1000 * 1000);
             if (c != '\0')
             {
@@ -147,7 +148,7 @@ void core1_entry()
                 }
             }
         }
-        if (deviceData != NULL && needUpdateServer && gps_data->year > 0 && detect_3_3V)
+        if (needUpdateServer)
         {
             // for (i = 0; i < poolNums; i++)
             // {
@@ -158,6 +159,18 @@ void core1_entry()
             //     }
             //     sleep_ms(10000);
             // }
+            rtc_get_datetime(&currentDate);
+            deviceData->year = currentDate.year - 2000;
+            deviceData->month = currentDate.month;
+            deviceData->date = currentDate.day;
+            deviceData->hour = currentDate.hour;
+            deviceData->minute = currentDate.min;
+            deviceData->second = currentDate.sec;
+            deviceData->pollutions[0].data = 0.12;
+            deviceData->pollutions[1].data = 10.12;
+            deviceData->pollutions[2].data = 3.22;
+            deviceData->pollutions[3].data = -1.1;
+            deviceData->pollutions[4].data = -21.7;
             uploadDevice(deviceData, uart0, UART0_EN_PIN);
             needUpdateServer = 0;
         }
@@ -321,8 +334,7 @@ int main()
     const float conversion_factor = 3.3f / (1 << 12);
     // deviceData = new_deviceData(1, 2, 3);
     // uint8_t changeFlag = false;
-    uint16_t dataLen =2 ;
-    float data[dataLen];
+
     size_t i;
     for (i = 0; i < FLASH_PAGE_SIZE; i++)
     {
@@ -364,6 +376,7 @@ int main()
         adc_select_input(DETECT_3_3V);
         lastDetect_3_3V = detect_3_3V;
         detect_3_3V = adc_read() * 3.3f / (1 << 12) * (2 + 15) / 2 > 2.2;
+        detect_3_3V = 1;
         if (!detect_3_3V)
         {
             gpio_put(power, 0);

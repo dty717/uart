@@ -68,7 +68,7 @@
                             #ifndef UART_TEST_GPRS
 // #define UART_TEST2
                             #ifndef UART_TEST2
-#define UART_KUNSHAN
+// #define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
 // #define UART_SUZHOU
                             #ifndef UART_SUZHOU
@@ -123,7 +123,7 @@
 #endif
 
 #ifdef UART_TIBET
-    // #define usingBeidou
+    #define usingBeidou
     #ifdef usingBeidou
         #define beidouReceiverCardID  15950044
         #define beidouChannel                2
