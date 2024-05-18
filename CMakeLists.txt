@@ -37,6 +37,7 @@ add_executable(uart
   uart_tibet.c
   uart_drone.c
   uart_CLO3.c
+  uart_as_pio.c
   crc.c
   http.c
   beidou.c
@@ -66,7 +67,7 @@ target_include_directories(uart PRIVATE
 )
 
 # Add any user requested libraries
-target_link_libraries(uart PRIVATE pico_stdlib pico_multicore hardware_adc hardware_gpio hardware_rtc hardware_spi hardware_flash hardware_pio)
+target_link_libraries(uart PRIVATE pico_stdlib pico_multicore hardware_adc hardware_gpio hardware_rtc hardware_spi hardware_flash hardware_pio pico_async_context_threadsafe_background)
 
 
 pico_add_extra_outputs(uart)

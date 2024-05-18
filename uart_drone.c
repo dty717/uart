@@ -99,7 +99,7 @@ void core1_entry()
                 break;
             }
             continue;
-            c = uart_rx_program_getc(pio, sm, 1000 * 1000);
+            c = uart_rx_program_getc(pio, sm, 1 * 1000 * 1000);
             if (c != '\0')
             {
                 if (c != '\n')

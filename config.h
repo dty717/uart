@@ -80,7 +80,10 @@
                             #ifndef UART_HUBEI
 #define UART_TIBET
                             #ifndef UART_TIBET
-#define UART_DRONE
+// #define UART_DRONE
+                            #ifndef UART_DRONE
+#define UART_AS_PIO
+                            #endif
                             #endif
                             #endif
                             #endif

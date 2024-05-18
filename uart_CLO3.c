@@ -60,7 +60,7 @@ void core1_entry()
 {
     while (1)
     {
-        char c = uart_rx_program_getc(pio, sm, 10000);
+        char c = uart_rx_program_getc(pio, sm, 1 * 1000 * 1000);
         // putchar(c);
         if(c!='\n'){
             if(uart_rx_program_charIndex>=uart_rx_program_charLen){
