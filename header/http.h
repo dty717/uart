@@ -62,6 +62,8 @@ typedef struct
 } _request;
 
 uint8_t uploadJSON(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin);
+uint8_t upload_SUQIAN_JSON(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin);
+
 void reset_request(_request *request);
 http_response_type_t handleHttp(uint8_t *httpString, uint16_t *len, _request *request);
 void convertChunked(uint8_t *body, uint16_t bodyLen);
@@ -76,6 +78,8 @@ void convertChunked(uint8_t *body, uint16_t bodyLen);
 #define ec_unit            ec_unit
 #define turbidity_unit     turbidity_unit
 #define time               time
+
+#define MN                 MN
 
 #ifdef __cplusplus
 }

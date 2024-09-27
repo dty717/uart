@@ -54,17 +54,13 @@ typedef enum
 
 #define PLC_DATE_REGISTERS_ADDRESS 0x19A
 
-#if defined(UART_HUBEI) || defined(UART_TIBET)
-    #define UT_REGISTERS_ADDRESS 0x7D0
+#if defined(UART_HUBEI) || defined(UART_TIBET) || defined(UART_SUQIAN_SENDING) || defined(UART_SUQIAN_RECEIVING)
+#define UT_REGISTERS_ADDRESS 0x7D0
 #elif defined(UART_TEST) 
     #define UT_REGISTERS_ADDRESS 0x7D0
 #else
     #define UT_REGISTERS_ADDRESS 0x57
 #endif
-
-#define LED_POOL_ADDRESS 0x10C0
-#define LED_VALUE_ADDRESS 0x5042
-
 
 #define COMMON_DEVICE_REGISTERS_ADDRESS 0x0340
 #define COMMON_DEVICE_nb_points 0x20
@@ -85,8 +81,18 @@ typedef enum
     #define COMMON_MN_LEN     14
 #endif
 
-#define setLedValueNums 6
-#define ledAddr 80
+#ifdef UART_SUQIAN_RECEIVING
+    #define setLedValueNums         4
+    #define ledAddr              0x18
+    #define LED_POOL_ADDRESS   0x7552
+    #define LED_VALUE_ADDRESS  0x5080
+#else
+    #define setLedValueNums         6
+    #define ledAddr                80
+    #define LED_POOL_ADDRESS   0x10C0
+    #define LED_VALUE_ADDRESS  0x5042
+#endif
+
 #define deviceAddr 1
 #define uploadAddr 0x80
 

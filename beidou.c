@@ -25,7 +25,7 @@ uint8_t checkBuf(uint8_t* recBuf, uint16_t recBufLen){
     uint8_t checktemp = checkBuf(beidou_buf, index);             \
     char crcOut[3];                                              \
     byteToHexStr(checktemp, crcOut);                             \
-    appendArray(crcOut, beidouBuffer, &sendBufferIndex);   \
+    appendArray(crcOut, beidouBuffer, &sendBufferIndex);         \
     appendArray("\r\n", beidouBuffer, &sendBufferIndex);
 
 
@@ -33,7 +33,7 @@ uint8_t uploadBeidou(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_e
 {
     uint16_t index = 0;
     size_t i = 0;
-    char hexOut[3];                                              \
+    char hexOut[3];
     // appendArray(DollarString, beidou_buf, &index);
     appendArray(Send_Info_CMD, beidou_buf, &index);
     appendArray(CommaString, beidou_buf, &index);
@@ -48,7 +48,7 @@ uint8_t uploadBeidou(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_e
 
     for (i = 0; i < deviceData->MN_len; i++)
     {
-        byteToHexStr(deviceData->MN[i], hexOut);                             \
+        byteToHexStr(deviceData->MN[i], hexOut);
         beidou_buf[index++]=hexOut[0];
         beidou_buf[index++]=hexOut[1];
     }

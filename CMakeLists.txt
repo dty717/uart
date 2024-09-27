@@ -27,6 +27,8 @@ pico_sdk_init()
 
 add_executable(uart
   uart.c
+  uart_suqian_receiving.c
+  uart_suqian_sending.c
   uart_suzhou.c
   uart_jiangning.c
   uart_test.c

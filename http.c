@@ -146,6 +146,86 @@ uint8_t uploadJSON(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_
     return 0;
 }
 
+uint8_t upload_SUQIAN_JSON(deviceData_t *deviceData, uart_inst_t *uart, uint8_t uart_en_pin)
+{
+    uint16_t index = 0;
+    size_t i;
+    appendArray(_STRINGIFY(LeftBracket), http_buf, &index);
+
+    appendArray(QuotationString, http_buf, &index);
+    appendArray("deviceID", http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(Colon), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(deviceID), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+
+    appendArray(CommaString, http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray("toID", http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(Colon), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(toID), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+
+    appendArray(CommaString, http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray("poolNum", http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(Colon), http_buf, &index);
+    appendNumberToStr(deviceData->poolNum, http_buf, &index);
+
+    appendArray(CommaString, http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray("pollutionNums", http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(Colon), http_buf, &index);
+    appendNumberToStr(deviceData->pollutionNums, http_buf, &index);
+
+    appendArray(CommaString, http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(MN), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(Colon), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    for (i = 0; i < deviceData->MN_len; i++)
+    {
+        http_buf[index++] = deviceData->MN[i];
+    }
+    appendArray(QuotationString, http_buf, &index);
+
+    appendArray(CommaString, http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(time), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    appendArray(_STRINGIFY(Colon), http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+    assignISOTime(deviceData->year, deviceData->month, deviceData->date, deviceData->hour, deviceData->minute, deviceData->second, http_buf, &index);
+    appendArray(QuotationString, http_buf, &index);
+
+    for (size_t i = 0; i < deviceData->pollutionNums + remainingPollutionNums; i++)
+    {
+        appendArray(CommaString, http_buf, &index);
+        appendArray(QuotationString, http_buf, &index);
+        appendArray(deviceData->pollutions[i].code, http_buf, &index);
+        appendArray(QuotationString, http_buf, &index);
+        appendArray(_STRINGIFY(Colon), http_buf, &index);
+        appendFloatToStrWithLen(deviceData->pollutions[i].data, http_buf, &index, 3);
+    }
+
+    appendArray(_STRINGIFY(RightBracket), http_buf, &index);
+    gpio_put(uart_en_pin, 1);
+    sleep_us(50);
+
+    http_buf[index] = '\0';
+    uart_puts(uart, http_buf);
+    sleep_us(10152 * 1000 / BAUD_RATE2 * (index + 1));
+    gpio_put(uart_en_pin, 0);
+    return 0;
+}
+
+
 void reset_request(_request *request)
 {
     request->state = STATE_VERSION;

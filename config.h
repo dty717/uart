@@ -60,6 +60,11 @@
 #define resetSIM_PIN 10
 #define clientsNumbers 1
 
+#define flashKeyFirst           '5'
+#define flashKeySecond          '2'
+#define flashKeyThird           '3'
+
+
 // #define UART
                             #ifndef UART
 // #define UART_TEST
@@ -78,11 +83,17 @@
                             #ifndef UART_JIANGNING
 // #define UART_HUBEI
                             #ifndef UART_HUBEI
-#define UART_TIBET
+// #define UART_TIBET
                             #ifndef UART_TIBET
 // #define UART_DRONE
                             #ifndef UART_DRONE
-#define UART_AS_PIO
+// #define UART_AS_PIO
+                            #ifndef UART_AS_PIO
+#define UART_SUQIAN_SENDING
+                            #ifndef UART_SUQIAN_SENDING
+#define UART_SUQIAN_RECEIVING
+                            #endif
+                            #endif
                             #endif
                             #endif
                             #endif
@@ -126,7 +137,7 @@
 #endif
 
 #ifdef UART_TIBET
-    #define usingBeidou
+    // #define usingBeidou
     #ifdef usingBeidou
         #define beidouReceiverCardID  15950044
         #define beidouChannel                2
@@ -137,6 +148,18 @@
         #define _api_password             "12"
     #endif
 
+#endif
+
+#ifdef UART_SUQIAN_SENDING
+    #define deviceID  D001EDA20240611001
+    #define toID      D001ECE20240611001
+#endif
+
+#ifdef UART_SUQIAN_RECEIVING
+    #define deviceID  D001ECE20240611001
+    #define toID      D001EDA20240611001
+    #define allPoolNums                2
+    #define usingLEDScreen
 #endif
 
 #ifdef UART_SUZHOU

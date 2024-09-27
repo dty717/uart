@@ -1,5 +1,6 @@
 #include "../header/common/handler.h"
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <time.h>
 #include "pico/util/datetime.h"
@@ -408,6 +409,10 @@ uint32_t toNumber(uint8_t *target, uint16_t startIndex, uint16_t endIndex)
     {
         val += ten_power * (target[i] - '0');
         ten_power *= 10;
+        if (i == 0)
+        {
+            break;
+        }
     }
     return val;
 }
@@ -766,6 +771,22 @@ uint8_t containKeyWords(uint8_t *key, uint8_t *msg)
 
 uint8_t containWords(uint8_t *key, uint8_t *msg){
     return strlen(key) == strspn(key, msg);
+}
+
+int indexOf(unsigned char *key, unsigned char *msg)
+{
+    unsigned char *result;
+    result = strstr(msg, key);
+    // printf("result:%s\r\n", result);
+    /* Result = a pointer to "haystack" */
+    if (result)
+    {
+        return result - msg;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 uint8_t containKeyWordsWithLen(uint8_t *key, uint8_t *msg, uint32_t len)
