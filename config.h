@@ -75,7 +75,7 @@
                             #ifndef UART_TEST2
 // #define UART_KUNSHAN
                             #ifndef UART_KUNSHAN
-// #define UART_SUZHOU
+#define UART_SUZHOU
                             #ifndef UART_SUZHOU
 // #define UART_CLO3
                             #ifndef UART_CLO3
@@ -164,12 +164,12 @@
 
 #ifdef UART_SUZHOU
     #define remainingPollutionNums 0
-    
+
     #define usingMultiDevice
 
     #ifdef usingMultiDevice
-        #define usingLEDScreen
-        #define readPHFromADC
+        // #define usingLEDScreen
+        // #define readPHFromADC
         #ifdef readPHFromADC
             #define remainingPollutionNums 2
         #else

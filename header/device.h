@@ -54,7 +54,7 @@ typedef enum
 
 #define PLC_DATE_REGISTERS_ADDRESS 0x19A
 
-#if defined(UART_HUBEI) || defined(UART_TIBET) || defined(UART_SUQIAN_SENDING) || defined(UART_SUQIAN_RECEIVING)
+#if defined(UART_HUBEI) || defined(UART_TIBET) || defined(UART_SUQIAN_SENDING) || defined(UART_SUQIAN_RECEIVING) || defined(UART_SUZHOU)
 #define UT_REGISTERS_ADDRESS 0x7D0
 #elif defined(UART_TEST) 
     #define UT_REGISTERS_ADDRESS 0x7D0

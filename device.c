@@ -980,11 +980,11 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 		// #ifdef UART_KUNSHAN
 		// 	deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);;
 		// #else
-#if defined(UART_SUZHOU) || defined(UART_KUNSHAN)
+// #if defined(UART_SUZHOU) || defined(UART_KUNSHAN)
 		deviceData->pollutions[i].data = bytesToFloat(b2, b3, b0, b1);
-#else
-		deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
-#endif
+// #else
+		// deviceData->pollutions[i].data = bytesToFloat(b0, b1, b2, b3);
+// #endif
 		// printf("data  %.2X  %.2X  %.2X  %.2X\r\n",b0, b1, b2, b3);
 		deviceData->pollutions[i].state = tab_rp_registers[pollutionStateAddr + PollutionDataLen * i];
 #if defined(UART_SUZHOU) && defined(usingMultiDevice)
