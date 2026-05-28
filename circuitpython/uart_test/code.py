@@ -23,8 +23,8 @@ uart1 = busio.UART(board.GP4, board.GP5, baudrate=testBaudrate,stop = 1,parity =
 en1 = digitalio.DigitalInOut(board.GP3)
 en1.direction = digitalio.Direction.OUTPUT
 
-en0.value = 0
-en1.value = 0
+en0.value = 1
+en1.value = 1
 
 led1 = digitalio.DigitalInOut(board.GP11)
 led1.direction = digitalio.Direction.OUTPUT

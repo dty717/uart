@@ -963,7 +963,15 @@ void addNewDate(deviceData_t *deviceData, uint16_t *tab_rp_registers)
 
 	pollutionNums = tab_rp_registers[pollutionNumsAddr];
 #if defined(UART_SUZHOU) && defined(usingMultiDevice)
-	uint16_t shiftHistoryAddr = 4 * (pollutionNums + remainingPollutionNums) * (deviceData->poolNum - 1);
+	uint16_t shiftHistoryAddr;
+	if (deviceData->poolNum)
+	{
+		shiftHistoryAddr = 4 * (pollutionNums + remainingPollutionNums) * (deviceData->poolNum - 1);
+	}
+	else
+	{
+		shiftHistoryAddr = 0;
+	}
 #endif
 	for (i = 0; i < pollutionNums; i++)
 	{
